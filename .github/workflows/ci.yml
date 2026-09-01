@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: jhc
+          POSTGRES_PASSWORD: jhc
+          POSTGRES_DB: jhc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jhc -d jhc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://jhc:jhc@localhost:5432/jhc?schema=public
+      DATABASE_URL_UNPOOLED: postgresql://jhc:jhc@localhost:5432/jhc?schema=public
+      AUTH_SECRET: ci-not-a-real-secret
+      # No AUTH_GOOGLE_* / OPENAI_API_KEY: the app must build and pass tests
+      # in fully-degraded local mode.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

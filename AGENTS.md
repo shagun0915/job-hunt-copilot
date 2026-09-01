@@ -49,7 +49,7 @@ Single-user job-search tracker with LLM assists. See `README.md` for the full pi
 ## Deploy (Vercel + Neon)
 
 - `vercel-build` script runs `prisma migrate deploy`. `DATABASE_URL` = Neon pooled,
-  `DIRECT_URL` = Neon direct (schema has `directUrl`). Both must be set locally too
+  `DATABASE_URL_UNPOOLED` = Neon direct (schema has `directUrl`). Both must be set locally too
   (same value).
 - `/api/cron/sync-inbox` is a Vercel Cron (see `vercel.json`), gated by `CRON_SECRET`.
 - Gmail `readonly` is a restricted scope — OAuth app stays in Testing mode
