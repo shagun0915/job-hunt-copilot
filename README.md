@@ -96,20 +96,28 @@ works with the same env vars either way).
 > verification needed. The tradeoff: refresh tokens issued in testing mode expire
 > after 7 days, so you re-authorize weekly. Everything else keeps working.
 
-## Deploying to Vercel + Neon
+## Deploying to Vercel
 
-1. **Neon**: create a project. Copy the **pooled** connection string (host contains
-   `-pooler`) → `DATABASE_URL`, and the **direct** string → `DIRECT_URL`.
-2. **Vercel**: import the repo. It auto-detects Next.js and runs the `vercel-build`
-   script (`prisma generate && prisma migrate deploy && next build`), so migrations
-   apply on every deploy.
-3. Set env vars in Vercel: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`,
-   `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ALLOWED_EMAIL`, `OPENAI_API_KEY`,
-   `CRON_SECRET`. `AUTH_URL` is inferred automatically.
-4. Add the production callback URL to the Google OAuth client (step 2 above).
+1. **Import the repo** in Vercel — it auto-detects Next.js and runs the
+   `vercel-build` script (`prisma generate && prisma migrate deploy && next build`),
+   so migrations apply on every deploy.
+2. **Database**: in the project's *Storage* tab, add **Postgres (Neon)**. It
+   injects `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED` (direct) — the exact
+   names the Prisma schema expects, no manual copying. (Standalone Neon works too:
+   set those two vars yourself.)
+3. **Env vars** (Settings → Environment Variables, Production):
+   `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_EMBED_MODEL`,
+   `AUTH_SECRET` (`npx auth secret`), `CRON_SECRET` (any random string),
+   `ALLOWED_EMAIL`. Add `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` only if you want
+   Gmail sync. `AUTH_URL` is inferred automatically.
+4. **Keep it private**: Settings → Deployment Protection → enable *Vercel
+   Authentication*. Gates the whole app behind your Vercel login — no app-level
+   auth needed. (Google OAuth, if set, adds a second `ALLOWED_EMAIL` gate.)
 5. `vercel.json` registers a daily cron (`/api/cron/sync-inbox`); Vercel injects
    the `CRON_SECRET` bearer token automatically. Trigger it by hand with
    `curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/sync-inbox`.
+6. If you added Google OAuth: add `https://<domain>/api/auth/callback/google` to
+   the OAuth client's redirect URIs.
 
 ## Architecture notes
 
