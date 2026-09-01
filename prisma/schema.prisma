@@ -8,11 +8,13 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  // Runtime: pooled connection (Neon pooler / PgBouncer) — safe for serverless.
+  // Runtime queries: pooled connection (PgBouncer / Supavisor transaction mode).
+  // Safe for serverless. On Supabase this is the "Transaction pooler" string
+  // (port 6543) with ?pgbouncer=true&connection_limit=1.
   url       = env("DATABASE_URL")
-  // Migrations & introspection: direct (unpooled) connection. This is the exact
-  // name Vercel's Neon integration injects, so no manual env var copying is
-  // needed on deploy. Locally, point it at the same value as DATABASE_URL.
+  // Migrations & introspection: a connection that is NOT transaction-pooled.
+  // On Supabase use the "Session pooler" string (port 5432, pooler host) so it
+  // works from IPv4-only build environments. Locally, same value as DATABASE_URL.
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
