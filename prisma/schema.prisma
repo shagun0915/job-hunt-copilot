@@ -1,0 +1,402 @@
+// AI Job Hunt Copilot — data model
+// Single-user app: auth gates the whole surface, so domain rows are not
+// per-user scoped. NextAuth models are kept for session + Google/Gmail tokens.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Runtime: pooled connection (Neon pooler / PgBouncer) — safe for serverless.
+  url       = env("DATABASE_URL")
+  // Migrations & introspection: direct connection. Falls back to DATABASE_URL
+  // locally where the two are the same.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth (NextAuth v5 / @auth/prisma-adapter)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+}
+
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? @db.Text
+  access_token             String? @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? @db.Text
+  session_state            String?
+  refresh_token_expires_in Int?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Domain
+// ---------------------------------------------------------------------------
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  OA // online assessment
+  PHONE_SCREEN
+  ONSITE
+  OFFER
+  REJECTED
+  WITHDRAWN
+  GHOSTED
+}
+
+enum ContactRole {
+  RECRUITER
+  HIRING_MANAGER
+  REFERRAL
+  INTERVIEWER
+  OTHER
+}
+
+enum DeadlineType {
+  OA
+  TAKE_HOME
+  APPLICATION
+  RESPOND_BY
+  INTERVIEW_PREP
+  OTHER
+}
+
+enum InterviewType {
+  RECRUITER_SCREEN
+  TECHNICAL_PHONE
+  ONLINE_ASSESSMENT
+  TAKE_HOME
+  SYSTEM_DESIGN
+  BEHAVIORAL
+  ONSITE
+  FINAL
+  OTHER
+}
+
+enum EmailDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model Company {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  domain       String?
+  industry     String?
+  size         String?
+  location     String?
+  notes        String?       @db.Text
+  applications Application[]
+  createdAt    DateTime      @default(now())
+}
+
+model Application {
+  id         String            @id @default(cuid())
+  companyId  String
+  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role       String
+  seniority  String?
+  location   String?
+  remote     Boolean?
+  sourceUrl  String?
+  source     String? // "LinkedIn", "referral", "company site", ...
+  status     ApplicationStatus @default(SAVED)
+  priority   Int               @default(0) // 0 normal, 1 high, -1 low
+  appliedAt  DateTime?
+  salaryMin  Int?
+  salaryMax  Int?
+  salaryNote String?
+  notes      String?           @db.Text
+
+  // Raw + LLM-extracted job description
+  jdText         String?   @db.Text
+  jdSummary      String?   @db.Text
+  jdRequirements String[] // must-haves pulled from the JD
+  jdNiceToHaves  String[]
+  jdTechStack    String[]
+  jdRedFlags     String[]
+  jdExtractedAt  DateTime?
+  jdExtractModel String?
+
+  statusEvents StatusEvent[]
+  contacts     Contact[]
+  deadlines    Deadline[]
+  interviews   Interview[]
+  emailThreads EmailThread[]
+  matchScores  MatchScore[]
+  drafts       Draft[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([companyId])
+}
+
+enum DraftKind {
+  COVER_LETTER
+  RECRUITER_REPLY
+  REFERRAL_ASK
+  COLD_OUTREACH
+  APPLICATION_EMAIL
+  FOLLOW_UP
+}
+
+model Draft {
+  id               String      @id @default(cuid())
+  applicationId    String
+  application      Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  kind             DraftKind
+  subject          String?
+  body             String      @db.Text
+  shortNote        String? // ≤300-char LinkedIn connection-request note (referral/cold)
+  instructions     String?     @db.Text // extra steer the user gave
+  recipientContext String?     @db.Text // recipient's role / background for personalization
+  resumeVersionId  String?
+  model            String?
+  createdAt        DateTime    @default(now())
+
+  @@index([applicationId])
+}
+
+model StatusEvent {
+  id            String             @id @default(cuid())
+  applicationId String
+  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  from          ApplicationStatus?
+  to            ApplicationStatus
+  note          String?
+  createdAt     DateTime           @default(now())
+
+  @@index([applicationId])
+}
+
+model Contact {
+  id            String       @id @default(cuid())
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  name          String
+  role          ContactRole  @default(OTHER)
+  email         String?
+  phone         String?
+  linkedinUrl   String?
+  notes         String?      @db.Text
+  createdAt     DateTime     @default(now())
+
+  @@index([applicationId])
+}
+
+model Deadline {
+  id            String       @id @default(cuid())
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  type          DeadlineType @default(OTHER)
+  title         String
+  dueAt         DateTime
+  completedAt   DateTime?
+  source        String? // "email", "manual", "llm"
+  notes         String?      @db.Text
+  remindedAt    DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@index([dueAt])
+  @@index([applicationId])
+}
+
+model Interview {
+  id            String        @id @default(cuid())
+  applicationId String
+  application   Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  type          InterviewType @default(OTHER)
+  scheduledAt   DateTime?
+  durationMin   Int?
+  withNames     String[]
+  location      String? // "Zoom", "onsite", "HackerRank", ...
+  outcome       String? // "passed", "failed", "pending", "cancelled"
+  prepNotes     String?       @db.Text
+  debrief       String?       @db.Text
+  createdAt     DateTime      @default(now())
+
+  @@index([applicationId])
+  @@index([scheduledAt])
+}
+
+model EmailThread {
+  id            String         @id @default(cuid())
+  applicationId String?
+  application   Application?   @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  gmailThreadId String         @unique
+  subject       String?
+  lastMessageAt DateTime?
+  summary       String?        @db.Text
+  category      String? // "recruiter_outreach", "rejection", "interview_invite", "oa_invite", "offer", "other"
+  actionNeeded  Boolean        @default(false)
+  actionNote    String?
+  summarizedAt  DateTime?
+  messages      EmailMessage[]
+  createdAt     DateTime       @default(now())
+
+  @@index([applicationId])
+  @@index([lastMessageAt])
+}
+
+model EmailMessage {
+  id         String         @id @default(cuid())
+  threadId   String
+  thread     EmailThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  gmailMsgId String         @unique
+  direction  EmailDirection @default(INBOUND)
+  fromEmail  String?
+  fromName   String?
+  toEmails   String[]
+  sentAt     DateTime?
+  snippet    String?        @db.Text
+  bodyText   String?        @db.Text
+  createdAt  DateTime       @default(now())
+
+  @@index([threadId])
+}
+
+enum ResumeKind {
+  SPECIALIZED // tailored to a narrow role family (e.g. "Dynamics 365")
+  GENERIC // broad / fallback
+  OTHER
+}
+
+model ResumeVersion {
+  id            String       @id @default(cuid())
+  label         String // "Dynamics 365", "Generic SWE", ...
+  kind          ResumeKind   @default(OTHER)
+  specialtyNote String? // what this version is tuned for — used for auto-select
+  fileName      String?
+  filePath      String? // path under /uploads
+  mimeType      String?
+  content       String       @db.Text // parsed plain text
+  isDefault     Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  matchScores   MatchScore[]
+}
+
+/// One ATS-style review of a résumé version against an application's JD.
+model MatchScore {
+  id              String        @id @default(cuid())
+  applicationId   String
+  application     Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  resumeVersionId String
+  resumeVersion   ResumeVersion @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+
+  scoreBefore    Int // 0-100 keyword/skills/title heuristic
+  scoreAfter     Int // 0-100 after applying the suggested rewrites
+  scoreRationale String? @db.Text
+  titleAlignment String? // "strong" | "partial" | "mismatch" + note
+  autoPicked     Boolean @default(false) // résumé chosen automatically
+  pickReason     String?
+
+  matched              String[] // JD requirements the résumé already covers
+  hardRequirementsGaps String[] // missing must-haves, most important first
+  niceToHaveGaps       String[] // missing preferred qualifications
+  formattingFlags      String[] // e.g. "no explicit years-of-experience phrasing"
+  uncloseableGaps      String[] // gaps that can't be closed without fabrication
+  rewrites             Json? // [{ section, before, after, keywordsFolded[] }]
+  verdict              String?  @db.Text
+
+  model     String?
+  createdAt DateTime @default(now())
+
+  @@unique([applicationId, resumeVersionId])
+  @@index([applicationId])
+}
+
+/// Single-user candidate profile — keeps drafts and résumé rewrites factually
+/// accurate (availability, employment status, claims to never make).
+model CandidateProfile {
+  id           String   @id @default("singleton")
+  fullName     String?
+  headline     String?
+  location     String?
+  availability String? // "Immediately available", "1 month notice", ...
+  statusNote   String?  @db.Text // e.g. "Laid off from X; do not say 'currently at X'"
+  doNotClaim   String[] // skills / facts to never assert (e.g. "TypeScript", "Kubernetes")
+  linksJson    Json? // { portfolio, github, linkedin }
+  updatedAt    DateTime @updatedAt
+}
+
+model JobListing {
+  id          String    @id @default(cuid())
+  source      String // "greenhouse", "lever", "ashby", "manual", ...
+  externalId  String?
+  company     String
+  title       String
+  location    String?
+  remote      Boolean?
+  url         String    @unique
+  description String?   @db.Text
+  postedAt    DateTime?
+  salaryText  String?
+  tags        String[]
+  dismissed   Boolean   @default(false)
+  savedAppId  String? // set when converted into an Application
+  fetchedAt   DateTime  @default(now())
+
+  @@index([source])
+  @@index([postedAt])
+}
+
+enum EmbeddingKind {
+  APPLICATION
+  EMAIL_THREAD
+}
+
+// Semantic-search index. Vectors are small and few (single-user app), so they're
+// stored as Float[] and cosine-ranked in the app — no pgvector extension needed.
+model Embedding {
+  id        String        @id @default(cuid())
+  kind      EmbeddingKind
+  refId     String // Application.id or EmailThread.id
+  content   String        @db.Text // the text that was embedded (shown as the snippet)
+  vector    Float[]
+  model     String
+  hash      String // hash of `content`; skip re-embedding when unchanged
+  updatedAt DateTime      @updatedAt
+  createdAt DateTime      @default(now())
+
+  @@unique([kind, refId])
+  @@index([kind])
+}
