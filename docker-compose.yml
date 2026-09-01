@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: jhc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jhc
+      POSTGRES_PASSWORD: jhc
+      POSTGRES_DB: jhc
+    ports:
+      - "5432:5432"
+    volumes:
+      - jhc-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jhc -d jhc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  jhc-pgdata:
