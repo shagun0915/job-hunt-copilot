@@ -33,9 +33,9 @@ runs ungated in local single-user mode and Gmail sync is hidden.
 ## Stack
 
 - **Next.js 16** (App Router, Server Components, Server Actions, Turbopack)
-- **PostgreSQL** + **Prisma 6**  (hosted on **Neon**, pooled connection)
+- **PostgreSQL** + **Prisma 6** (Supabase in production, pooled connection)
 - **NextAuth v5** — Google provider, doubling as the Gmail API grant
-- **OpenAI** — chat (`gpt-4o-mini`) with JSON-mode + Zod-validated responses; embeddings (`text-embedding-3-small`)
+- **LLM** — any OpenAI-compatible endpoint (OpenAI `gpt-4o-mini`, or Google Gemini's free tier) with JSON-mode + Zod-validated responses; embeddings for semantic search
 - **Tailwind v4**, theme-aware (light/dark)
 - **Vitest** unit tests · **GitHub Actions** CI · deploy target **Vercel**
 
@@ -101,10 +101,14 @@ works with the same env vars either way).
 1. **Import the repo** in Vercel — it auto-detects Next.js and runs the
    `vercel-build` script (`prisma generate && prisma migrate deploy && next build`),
    so migrations apply on every deploy.
-2. **Database**: in the project's *Storage* tab, add **Postgres (Neon)**. It
-   injects `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED` (direct) — the exact
-   names the Prisma schema expects, no manual copying. (Standalone Neon works too:
-   set those two vars yourself.)
+2. **Database — Supabase**: create a project, open **Connect**, and set two env
+   vars in Vercel:
+   - `DATABASE_URL` = the **Transaction pooler** string (port 6543) with
+     `?pgbouncer=true&connection_limit=1` appended
+   - `DATABASE_URL_UNPOOLED` = the **Session pooler** string (port 5432,
+     `*.pooler.supabase.com`) — *not* the raw "Direct connection", which is
+     IPv6-only and won't reach from Vercel's build container
+   (Neon also works — set the same two vars from its pooled + direct strings.)
 3. **Env vars** (Settings → Environment Variables, Production):
    `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_EMBED_MODEL`,
    `AUTH_SECRET` (`npx auth secret`), `CRON_SECRET` (any random string),

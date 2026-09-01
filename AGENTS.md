@@ -46,11 +46,12 @@ Single-user job-search tracker with LLM assists. See `README.md` for the full pi
 - Semantic search stores vectors as `Float[]` and ranks in JS — **no pgvector**.
   Keep it that way unless the dataset genuinely outgrows it.
 
-## Deploy (Vercel + Neon)
+## Deploy (Vercel + Supabase Postgres)
 
-- `vercel-build` script runs `prisma migrate deploy`. `DATABASE_URL` = Neon pooled,
-  `DATABASE_URL_UNPOOLED` = Neon direct (schema has `directUrl`). Both must be set locally too
-  (same value).
+- `vercel-build` script runs `prisma migrate deploy`. `DATABASE_URL` = Supabase
+  transaction pooler (6543, `?pgbouncer=true&connection_limit=1`),
+  `DATABASE_URL_UNPOOLED` = Supabase **session pooler** (5432, `*.pooler.supabase.com`
+  — NOT the IPv6-only direct connection). Both set locally too (same Docker value).
 - `/api/cron/sync-inbox` is a Vercel Cron (see `vercel.json`), gated by `CRON_SECRET`.
 - Gmail `readonly` is a restricted scope — OAuth app stays in Testing mode
   (7-day refresh-token expiry is the accepted tradeoff).
