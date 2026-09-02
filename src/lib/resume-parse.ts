@@ -15,10 +15,12 @@ export async function extractResumeText(
     lower.endsWith(".docx");
 
   if (isPdf) {
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: new Uint8Array(buf) });
-    const { text } = await parser.getText();
-    return normalize(text);
+    // unpdf ships a serverless-safe pdf.js build — no DOMMatrix / canvas deps,
+    // so it works in the Vercel Node runtime where `pdf-parse` throws.
+    const { extractText, getDocumentProxy } = await import("unpdf");
+    const pdf = await getDocumentProxy(new Uint8Array(buf));
+    const { text } = await extractText(pdf, { mergePages: true });
+    return normalize(Array.isArray(text) ? text.join("\n") : text);
   }
 
   if (isDocx) {
