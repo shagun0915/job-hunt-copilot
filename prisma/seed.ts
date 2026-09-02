@@ -274,19 +274,22 @@ async function main() {
     create: {
       id: "singleton",
       fullName: "Shagun Yadav",
-      headline: "Microsoft Dynamics 365 CE / Power Platform Developer",
+      headline: "Software Engineer — C#/.NET, Azure, Power Platform",
       location: "Bengaluru, India",
       availability: "Immediately available",
       statusNote:
-        "Laid off from Visa in Aug 2025 due to org restructuring. Do not say 'currently at Visa' — use past tense.",
+        "Left Visa on 29 Jul 2026 — role eliminated in a company-wide restructuring, not performance-related. Refer to Visa in the past tense; never imply I'm still employed there. Fine to mention immediate availability. ~3 years total experience (since Jun 2023); AI / agentic work is recent (2025–2026), not multi-year.",
       doNotClaim: [
         "TypeScript",
-        "Power Fx",
-        "PCF",
-        "Power BI",
-        "SharePoint",
+        "Go",
+        "Java",
+        "Rust",
         "Kubernetes",
         "AWS",
+        "gRPC",
+        "Power BI",
+        "SharePoint",
+        "Power Fx",
       ],
     },
   });
