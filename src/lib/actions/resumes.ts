@@ -7,6 +7,7 @@ import { requireViewer } from "@/lib/viewer";
 import { extractResumeText } from "@/lib/resume-parse";
 import { matchResume } from "@/lib/ai/match-resume";
 import { pickResume } from "@/lib/ai/pick-resume";
+import { aiErrorMessage } from "@/lib/openai";
 import { getProfile, profileFacts } from "@/lib/profile";
 
 const KINDS: ResumeKind[] = ["SPECIALIZED", "GENERIC", "OTHER"];
@@ -105,7 +106,10 @@ export async function deleteResumeVersion(formData: FormData) {
  * before/after, split the keyword gap into hard vs nice-to-have, produce
  * truthful rewrites, and list gaps that can't be honestly closed.
  */
-export async function runResumeMatch(formData: FormData) {
+export async function runResumeMatch(
+  _prev: { error?: string; ok?: boolean },
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
   await requireViewer();
   const applicationId = String(formData.get("applicationId"));
   let resumeVersionId = String(formData.get("resumeVersionId") ?? "");
@@ -114,12 +118,14 @@ export async function runResumeMatch(formData: FormData) {
     where: { id: applicationId },
     include: { company: true },
   });
-  if (!app) return;
+  if (!app) return { error: "Application not found." };
 
   const resumes = await prisma.resumeVersion.findMany({
     orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
   });
-  if (resumes.length === 0) return;
+  if (resumes.length === 0) {
+    return { error: "Add a résumé on the Résumés page first." };
+  }
 
   let autoPicked = false;
   let pickReason: string | null = null;
@@ -149,44 +155,48 @@ export async function runResumeMatch(formData: FormData) {
   }
 
   const resume = resumes.find((r) => r.id === resumeVersionId);
-  if (!resume) return;
+  if (!resume) return { error: "Résumé version not found." };
 
-  const profile = await getProfile();
+  try {
+    const profile = await getProfile();
+    const { data, model } = await matchResume({
+      resumeText: resume.content,
+      resumeLabel: resume.label,
+      jobTitle: app.role,
+      company: app.company.name,
+      jdText: app.jdText,
+      requirements: app.jdRequirements,
+      candidateFacts: profileFacts(profile),
+    });
 
-  const { data, model } = await matchResume({
-    resumeText: resume.content,
-    resumeLabel: resume.label,
-    jobTitle: app.role,
-    company: app.company.name,
-    jdText: app.jdText,
-    requirements: app.jdRequirements,
-    candidateFacts: profileFacts(profile),
-  });
+    const payload = {
+      scoreBefore: Math.round(data.scoreBefore),
+      scoreAfter: Math.round(data.scoreAfter),
+      scoreRationale: data.scoreRationale,
+      titleAlignment: data.titleAlignment,
+      autoPicked,
+      pickReason,
+      matched: data.matched,
+      hardRequirementsGaps: data.hardRequirementsGaps,
+      niceToHaveGaps: data.niceToHaveGaps,
+      formattingFlags: data.formattingFlags,
+      uncloseableGaps: data.uncloseableGaps,
+      rewrites: data.rewrites as unknown as Prisma.InputJsonValue,
+      verdict: data.verdict,
+      model,
+    };
 
-  const payload = {
-    scoreBefore: Math.round(data.scoreBefore),
-    scoreAfter: Math.round(data.scoreAfter),
-    scoreRationale: data.scoreRationale,
-    titleAlignment: data.titleAlignment,
-    autoPicked,
-    pickReason,
-    matched: data.matched,
-    hardRequirementsGaps: data.hardRequirementsGaps,
-    niceToHaveGaps: data.niceToHaveGaps,
-    formattingFlags: data.formattingFlags,
-    uncloseableGaps: data.uncloseableGaps,
-    rewrites: data.rewrites as unknown as Prisma.InputJsonValue,
-    verdict: data.verdict,
-    model,
-  };
-
-  await prisma.matchScore.upsert({
-    where: {
-      applicationId_resumeVersionId: { applicationId, resumeVersionId },
-    },
-    create: { applicationId, resumeVersionId, ...payload },
-    update: payload,
-  });
+    await prisma.matchScore.upsert({
+      where: {
+        applicationId_resumeVersionId: { applicationId, resumeVersionId },
+      },
+      create: { applicationId, resumeVersionId, ...payload },
+      update: payload,
+    });
+  } catch (e) {
+    return { error: aiErrorMessage(e) };
+  }
 
   revalidatePath(`/applications/${applicationId}`);
+  return { ok: true };
 }

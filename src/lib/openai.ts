@@ -22,6 +22,19 @@ export function openai(): OpenAI {
   return client;
 }
 
+/** Map an LLM/network error to a short message safe to show the user. */
+export function aiErrorMessage(e: unknown): string {
+  if (e instanceof AINotConfiguredError) return e.message;
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/429|rate.?limit|quota|RESOURCE_EXHAUSTED/i.test(msg))
+    return "The AI provider is rate-limiting — wait a minute and try again.";
+  if (/timeout|ETIMEDOUT|aborted|deadline/i.test(msg))
+    return "The AI request timed out. Try again — a shorter JD/résumé helps.";
+  if (/did not return valid JSON|Invalid|ZodError/i.test(msg))
+    return "The model returned an unexpected response. Try again.";
+  return "AI request failed. Try again in a moment.";
+}
+
 function stripCodeFence(s: string): string {
   const m = s.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   return m ? m[1] : s;
@@ -54,28 +67,47 @@ export async function chatJSON<T>({
   const reasoning_effort = env.openaiReasoningEffort as
     | OpenAI.Chat.ChatCompletionCreateParams["reasoning_effort"]
     | undefined;
+  const base = {
+    model,
+    temperature: 0.2,
+    max_tokens: maxTokens,
+    ...(reasoning_effort ? { reasoning_effort } : {}),
+    messages,
+  } as const;
 
+  const once = async () => {
+    try {
+      return await openai().chat.completions.create({
+        ...base,
+        response_format: { type: "json_object" },
+      });
+    } catch (e) {
+      // Rate limits must bubble to the retry loop below.
+      if (e instanceof OpenAI.APIError && e.status === 429) throw e;
+      // Otherwise assume the endpoint rejected response_format — retry plain
+      // and lean on the "return ONLY JSON" instruction + defensive parsing.
+      return openai().chat.completions.create(base);
+    }
+  };
+
+  // Free-tier providers (Gemini) 429 on a per-minute quota that clears fast —
+  // a couple of backed-off retries smooth it over.
   let res;
-  try {
-    res = await openai().chat.completions.create({
-      model,
-      temperature: 0.2,
-      max_tokens: maxTokens,
-      response_format: { type: "json_object" },
-      ...(reasoning_effort ? { reasoning_effort } : {}),
-      messages,
-    });
-  } catch {
-    // Some OpenAI-compatible endpoints (e.g. free-tier proxies) reject the
-    // response_format param outright — retry without it and lean on the
-    // system prompt + defensive parsing below.
-    res = await openai().chat.completions.create({
-      model,
-      temperature: 0.2,
-      max_tokens: maxTokens,
-      ...(reasoning_effort ? { reasoning_effort } : {}),
-      messages,
-    });
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await once();
+      break;
+    } catch (e) {
+      if (
+        attempt < 2 &&
+        e instanceof OpenAI.APIError &&
+        e.status === 429
+      ) {
+        await new Promise((r) => setTimeout(r, 4000 * (attempt + 1)));
+        continue;
+      }
+      throw e;
+    }
   }
 
   const raw = stripCodeFence(res.choices[0]?.message?.content ?? "");

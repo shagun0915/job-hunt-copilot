@@ -6,6 +6,7 @@ import { search } from "@/lib/search";
 import { Card, CardBody, EmptyState, PageHeader } from "@/components/ui";
 import { ReindexButton } from "./reindex-button";
 
+export const maxDuration = 60;
 export const metadata = { title: "Search · Job Hunt Copilot" };
 
 type SP = Promise<{ q?: string }>;
