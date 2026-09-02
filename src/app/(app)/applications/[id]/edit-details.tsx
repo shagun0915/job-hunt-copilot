@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Pencil } from "lucide-react";
 import { Card, CardBody } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -56,9 +57,15 @@ export function EditDetails({ app }: { app: App }) {
           <h2 className="text-sm font-semibold">Details</h2>
           <button
             onClick={() => setOpen((v) => !v)}
-            className="text-xs text-muted hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium hover:bg-surface-2"
           >
-            {open ? "Close" : "Edit"}
+            {open ? (
+              "Close"
+            ) : (
+              <>
+                <Pencil className="h-3 w-3" /> Edit
+              </>
+            )}
           </button>
         </div>
 
