@@ -14,25 +14,24 @@ export default async function JobsPage({ searchParams }: { searchParams: SP }) {
   const { show, q } = await searchParams;
   const showDismissed = show === "dismissed";
 
-  const listings = await prisma.jobListing.findMany({
-    where: {
-      dismissed: showDismissed,
-      ...(q
-        ? {
-            OR: [
-              { title: { contains: q, mode: "insensitive" } },
-              { company: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: [{ postedAt: "desc" }, { fetchedAt: "desc" }],
-    take: 100,
-  });
-
-  const activeCount = await prisma.jobListing.count({
-    where: { dismissed: false },
-  });
+  const [listings, activeCount] = await Promise.all([
+    prisma.jobListing.findMany({
+      where: {
+        dismissed: showDismissed,
+        ...(q
+          ? {
+              OR: [
+                { title: { contains: q, mode: "insensitive" } },
+                { company: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ postedAt: "desc" }, { fetchedAt: "desc" }],
+      take: 100,
+    }),
+    prisma.jobListing.count({ where: { dismissed: false } }),
+  ]);
 
   return (
     <div>

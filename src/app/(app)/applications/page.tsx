@@ -36,16 +36,19 @@ export default async function ApplicationsPage({
       : {}),
   };
 
-  const apps = await prisma.application.findMany({
-    where,
-    include: {
-      company: true,
-      _count: { select: { deadlines: true, emailThreads: true, interviews: true } },
-    },
-    orderBy: [{ updatedAt: "desc" }],
-  });
-
-  const total = await prisma.application.count();
+  const [apps, total] = await Promise.all([
+    prisma.application.findMany({
+      where,
+      include: {
+        company: true,
+        _count: {
+          select: { deadlines: true, emailThreads: true, interviews: true },
+        },
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    }),
+    prisma.application.count(),
+  ]);
 
   return (
     <div>
