@@ -262,19 +262,21 @@ model Interview {
 }
 
 model EmailThread {
-  id            String         @id @default(cuid())
-  applicationId String?
-  application   Application?   @relation(fields: [applicationId], references: [id], onDelete: SetNull)
-  gmailThreadId String         @unique
-  subject       String?
-  lastMessageAt DateTime?
-  summary       String?        @db.Text
-  category      String? // "recruiter_outreach", "rejection", "interview_invite", "oa_invite", "offer", "other"
-  actionNeeded  Boolean        @default(false)
-  actionNote    String?
-  summarizedAt  DateTime?
-  messages      EmailMessage[]
-  createdAt     DateTime       @default(now())
+  id             String         @id @default(cuid())
+  applicationId  String?
+  application    Application?   @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  gmailThreadId  String         @unique
+  subject        String?
+  lastMessageAt  DateTime?
+  summary        String?        @db.Text
+  category       String? // "recruiter_outreach", "rejection", "interview_invite", "oa_invite", "offer", "other"
+  guessedCompany String? // company the LLM identified — used to prefill "create application"
+  guessedRole    String?
+  actionNeeded   Boolean        @default(false)
+  actionNote     String?
+  summarizedAt   DateTime?
+  messages       EmailMessage[]
+  createdAt      DateTime       @default(now())
 
   @@index([applicationId])
   @@index([lastMessageAt])
