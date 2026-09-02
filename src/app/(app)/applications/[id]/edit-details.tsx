@@ -233,18 +233,18 @@ export function EditDetails({
 
 function Row({ k, v }: { k: string; v: string | null | undefined }) {
   return (
-    <div className="flex justify-between gap-2">
-      <dt className="text-muted">{k}</dt>
-      <dd className="text-right">{v || "—"}</dd>
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="shrink-0 text-muted">{k}</dt>
+      <dd className="min-w-0 break-words text-right">{v || "—"}</dd>
     </div>
   );
 }
 
 function LinkRow({ k, href }: { k: string; href: string | null }) {
   return (
-    <div className="flex justify-between gap-2">
-      <dt className="text-muted">{k}</dt>
-      <dd className="max-w-[60%] truncate text-right">
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="shrink-0 text-muted">{k}</dt>
+      <dd className="text-right">
         {href ? (
           <a
             href={href}
