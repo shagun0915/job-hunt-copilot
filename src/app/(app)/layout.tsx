@@ -17,7 +17,7 @@ export default async function AppLayout({
   return (
     <div className="mx-auto flex min-h-screen max-w-6xl gap-6 px-4 py-6">
       <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-52 shrink-0 flex-col md:flex">
-        <Nav viewerName={viewer.name} />
+        <Nav viewerName={viewer.name} canSignOut={authConfigured} />
       </aside>
       <main className="min-w-0 flex-1">
         <MobileNav />
