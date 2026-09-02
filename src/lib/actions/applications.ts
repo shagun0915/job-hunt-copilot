@@ -6,9 +6,28 @@ import { z } from "zod";
 import type { ApplicationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireViewer } from "@/lib/viewer";
+import type { WorkArrangement } from "@prisma/client";
 import { extractJD } from "@/lib/ai/extract-jd";
 import { aiErrorMessage } from "@/lib/openai";
 import { ALL_STATUSES } from "@/lib/status";
+
+const WORK_ARRANGEMENTS: WorkArrangement[] = ["ONSITE", "REMOTE", "HYBRID"];
+
+/** "" / "auto" / unknown → undefined; a valid enum value otherwise. */
+function parseArrangement(raw: FormDataEntryValue | null): WorkArrangement | null {
+  const v = String(raw ?? "");
+  return WORK_ARRANGEMENTS.includes(v as WorkArrangement)
+    ? (v as WorkArrangement)
+    : null;
+}
+
+/** "YYYY-MM-DD" from a date input → Date at local noon (avoids TZ off-by-one). */
+function parseDateInput(raw: FormDataEntryValue | null): Date | null {
+  const s = String(raw ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 async function upsertCompany(name: string) {
   const clean = name.trim();
@@ -62,6 +81,8 @@ export async function createApplication(
 
   const company = await upsertCompany(v.company);
 
+  const appliedAtOverride = parseDateInput(formData.get("appliedAt"));
+
   const app = await prisma.application.create({
     data: {
       companyId: company.id,
@@ -69,14 +90,16 @@ export async function createApplication(
       status,
       location: v.location || null,
       seniority: v.seniority || null,
+      workArrangement: parseArrangement(formData.get("workArrangement")),
       source: v.source || null,
       sourceUrl: v.sourceUrl ?? null,
+      applicationUrl: String(formData.get("applicationUrl") ?? "").trim() || null,
       salaryMin: v.salaryMin ?? null,
       salaryMax: v.salaryMax ?? null,
       notes: v.notes || null,
       jdText: v.jdText?.trim() || null,
       appliedAt:
-        status !== "SAVED" ? new Date() : null,
+        appliedAtOverride ?? (status !== "SAVED" ? new Date() : null),
       statusEvents: { create: { to: status } },
     },
   });
@@ -130,8 +153,11 @@ export async function updateApplication(
       role: v.role?.trim(),
       seniority: v.seniority || null,
       location: v.location || null,
+      workArrangement: parseArrangement(formData.get("workArrangement")),
       source: v.source || null,
       sourceUrl: v.sourceUrl || null,
+      applicationUrl: String(formData.get("applicationUrl") ?? "").trim() || null,
+      appliedAt: parseDateInput(formData.get("appliedAt")),
       salaryMin: toInt(v.salaryMin),
       salaryMax: toInt(v.salaryMax),
       salaryNote: v.salaryNote || null,
@@ -205,7 +231,9 @@ export async function runExtractJD(applicationId: string): Promise<ActionState> 
         jdExtractModel: model,
         seniority: data.seniority || undefined,
         location: data.location || undefined,
-        remote: data.remote ?? undefined,
+        // Only fill it when the JD clearly says remote — never downgrade a
+        // manual HYBRID/ONSITE choice on a re-extract.
+        workArrangement: data.remote === true ? "REMOTE" : undefined,
         salaryNote: data.salaryText || undefined,
       },
     });

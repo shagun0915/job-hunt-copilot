@@ -38,17 +38,31 @@ export function ApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
             ))}
           </Select>
         </Field>
+        <Field label="Applied on">
+          <Input name="appliedAt" type="date" />
+        </Field>
         <Field label="Seniority">
           <Input name="seniority" placeholder="New grad / Mid / Senior" />
         </Field>
         <Field label="Location">
-          <Input name="location" placeholder="Remote · US" />
+          <Input name="location" placeholder="Bengaluru / Remote · US" />
+        </Field>
+        <Field label="Work arrangement">
+          <Select name="workArrangement" defaultValue="">
+            <option value="">Unset</option>
+            <option value="ONSITE">On-site</option>
+            <option value="REMOTE">Remote</option>
+            <option value="HYBRID">Hybrid</option>
+          </Select>
         </Field>
         <Field label="Source">
           <Input name="source" placeholder="LinkedIn / referral / careers page" />
         </Field>
         <Field label="Job posting URL">
           <Input name="sourceUrl" type="url" placeholder="https://…" />
+        </Field>
+        <Field label="Application URL" hint="Where you actually submitted it.">
+          <Input name="applicationUrl" type="url" placeholder="career portal / LinkedIn link" />
         </Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Salary min ($)">

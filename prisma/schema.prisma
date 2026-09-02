@@ -118,6 +118,12 @@ enum EmailDirection {
   OUTBOUND
 }
 
+enum WorkArrangement {
+  ONSITE
+  REMOTE
+  HYBRID
+}
+
 model Company {
   id           String        @id @default(cuid())
   name         String        @unique
@@ -131,22 +137,23 @@ model Company {
 }
 
 model Application {
-  id         String            @id @default(cuid())
-  companyId  String
-  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  role       String
-  seniority  String?
-  location   String?
-  remote     Boolean?
-  sourceUrl  String?
-  source     String? // "LinkedIn", "referral", "company site", ...
-  status     ApplicationStatus @default(SAVED)
-  priority   Int               @default(0) // 0 normal, 1 high, -1 low
-  appliedAt  DateTime?
-  salaryMin  Int?
-  salaryMax  Int?
-  salaryNote String?
-  notes      String?           @db.Text
+  id              String            @id @default(cuid())
+  companyId       String
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role            String
+  seniority       String?
+  location        String?
+  workArrangement WorkArrangement?
+  sourceUrl       String? // the job posting / JD link
+  applicationUrl  String? // where the application was actually submitted (portal, LinkedIn, ...)
+  source          String? // "LinkedIn", "referral", "company site", ...
+  status          ApplicationStatus @default(SAVED)
+  priority        Int               @default(0) // 0 normal, 1 high, -1 low
+  appliedAt       DateTime?
+  salaryMin       Int?
+  salaryMax       Int?
+  salaryNote      String?
+  notes           String?           @db.Text
 
   // Raw + LLM-extracted job description
   jdText         String?   @db.Text

@@ -96,7 +96,7 @@ export async function trackListing(formData: FormData) {
       companyId: company.id,
       role: listing.title,
       location: listing.location,
-      remote: listing.remote,
+      workArrangement: listing.remote ? "REMOTE" : null,
       source: listing.source,
       sourceUrl: listing.url,
       salaryNote: listing.salaryText,
