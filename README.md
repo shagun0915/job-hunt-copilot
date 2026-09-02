@@ -1,20 +1,30 @@
 # AI Job Hunt Copilot
 
-A single-user job-search command center: track every application, recruiter
-thread, OA deadline, interview and résumé version in one dashboard — with an LLM
-doing the tedious parts (reading job descriptions, triaging your inbox, scoring
-résumé fit).
+A single-user command center for a software job search — track every application,
+recruiter email, OA deadline, interview and résumé version in one place, with an
+LLM handling the tedious parts: reading job descriptions, triaging the inbox,
+scoring résumé fit, drafting outreach.
 
-Built to show LLM-application engineering: structured extraction with schema
-validation, retrieval-light prompt design, graceful degradation when keys are
-absent, and an OAuth-backed Gmail integration.
+I built it for my own search. It also stands as a portfolio piece for
+LLM-application engineering: structured extraction with Zod-validated schemas, a
+provider-agnostic model layer, graceful degradation when keys are absent, and an
+OAuth-backed Gmail integration — deployed, with CI and migrations on every push.
+
+> A [3-minute walkthrough script](docs/DEMO_SCRIPT.md) and a demo dataset
+> (`npm run db:seed:demo`) are included for a video tour.
+
+## Screenshots
+
+<!-- Add 2–3 images: the dashboard, an application after an ATS pass
+     (showing the "can't be closed honestly" section), and the triaged inbox.
+     e.g.  ![Dashboard](docs/img/dashboard.png)  -->
 
 ## Features
 
 | Area | What it does |
 | --- | --- |
-| **Application tracker** | Kanban board + list, full pipeline (`SAVED → APPLIED → OA → PHONE_SCREEN → ONSITE → OFFER` / `REJECTED` / `WITHDRAWN` / `GHOSTED`), status history, contacts, comp, notes |
-| **JD extraction** | Paste a job description → GPT extracts a summary, must-have requirements, nice-to-haves, tech stack and **red flags**, validated against a Zod schema |
+| **Application tracker** | Kanban board + list, full pipeline (`SAVED → APPLIED → OA → PHONE_SCREEN → ONSITE → OFFER` / `REJECTED` / `WITHDRAWN` / `GHOSTED`), status history, contacts, comp, work arrangement, posting vs. application links, which résumé version you submitted, notes |
+| **JD extraction** | Paste a job description → the model extracts a summary, must-have requirements, nice-to-haves, tech stack and **red flags**, validated against a Zod schema |
 | **ATS pass** | Per role: pick the résumé version automatically (specialized vs generic), score **before → after**, split the keyword gap into hard-requirements vs nice-to-haves, produce truthful bullet rewrites that fold in missing keywords, and list every gap that *can't* be closed without lying. PDF / DOCX / text parsing |
 | **Candidate profile** | A single record of facts (availability, employment status, a "never claim" list) that keeps every résumé rewrite and message factually accurate |
 | **Gmail inbox sync** | Pulls recent job-search threads via the Gmail API, summarizes and categorizes each, auto-links threads to applications, and extracts deadlines ("OA due Friday") into the tracker |
@@ -42,13 +52,16 @@ runs ungated in local single-user mode and Gmail sync is hidden.
 ## Getting started
 
 ```bash
-cp .env.example .env          # fill in keys (all optional except DATABASE_URL)
+cp .env.example .env          # DATABASE_URL + DATABASE_URL_UNPOOLED required; keys optional
 npm install
 npm run db:up                 # Postgres via Docker
 npm run db:migrate            # apply schema
-npm run db:seed               # demo data (8 applications, deadlines, a résumé)
+npm run db:seed               # your data: 8 example applications, 2 résumé stubs, a profile
 npm run dev                   # http://localhost:3000
 ```
+
+`npm run db:seed:demo` instead loads a fictional persona for a screen recording —
+see [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
 
 Runs immediately with **zero API keys** — you get the full tracker and job board.
 Add keys to unlock the AI and Gmail features:
@@ -74,10 +87,12 @@ OPENAI_MODEL="gemini-3.6-flash"
 OPENAI_EMBED_MODEL="gemini-embedding-001"
 ```
 
-Free-tier limits (~10 req/min, 250/day) are well above what a personal tracker
-needs. One tradeoff: Google may use free-tier prompts for training — skip this
-if you don't want résumé/JD content used that way (a paid Gemini or OpenAI key
-works with the same env vars either way).
+Free-tier limits (~10 req/min plus a daily cap) are fine for steady day-to-day
+use, though a burst of activity can hit the per-minute limit — `chatJSON` backs
+off and retries, and the UI shows a "rate-limited, try again" message rather than
+erroring. Two tradeoffs: Google may use free-tier prompts for training (skip it
+if résumé/JD content needs to stay private), and testing-mode Gmail tokens expire
+after 7 days. A paid Gemini or OpenAI key lifts both and uses the same env vars.
 
 ### Google OAuth + Gmail sync
 
@@ -111,28 +126,38 @@ works with the same env vars either way).
    (Neon also works — set the same two vars from its pooled + direct strings.)
 3. **Env vars** (Settings → Environment Variables, Production):
    `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_EMBED_MODEL`,
-   `AUTH_SECRET` (`npx auth secret`), `CRON_SECRET` (any random string),
-   `ALLOWED_EMAIL`. Add `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` only if you want
-   Gmail sync. `AUTH_URL` is inferred automatically.
-4. **Keep it private**: Settings → Deployment Protection → enable *Vercel
-   Authentication*. Gates the whole app behind your Vercel login — no app-level
-   auth needed. (Google OAuth, if set, adds a second `ALLOWED_EMAIL` gate.)
-5. `vercel.json` registers a daily cron (`/api/cron/sync-inbox`); Vercel injects
-   the `CRON_SECRET` bearer token automatically. Trigger it by hand with
+   `OPENAI_REASONING_EFFORT` (`minimal` for Gemini), `AUTH_SECRET`
+   (`npx auth secret`), `CRON_SECRET` (any random string), `ALLOWED_EMAIL`,
+   `AUTH_URL` (your production URL — set it explicitly; the callback needs an
+   exact match).
+4. **Lock it down.** Vercel's own "Vercel Authentication" only protects *preview*
+   deployments on the Hobby plan — production stays public. So the gate is the
+   app's own auth: set `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`, and with those
+   present the app leaves local mode and every route requires a Google sign-in
+   restricted to `ALLOWED_EMAIL`. (This is also what enables Gmail sync.) Add
+   `https://<domain>/api/auth/callback/google` to the OAuth client's redirect
+   URIs. On the OAuth consent screen the Gmail permission appears on a **second**
+   screen after the identity screen — grant it there.
+5. **Functions region.** `vercel.json` pins functions to `bom1`; change it to a
+   region near your database or every request pays a cross-region round trip.
+6. `vercel.json` also registers a daily cron (`/api/cron/sync-inbox`); Vercel
+   injects the `CRON_SECRET` bearer token automatically. Trigger it by hand with
    `curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/sync-inbox`.
-6. If you added Google OAuth: add `https://<domain>/api/auth/callback/google` to
-   the OAuth client's redirect URIs.
 
 ## Architecture notes
 
 ### LLM layer (`src/lib/ai/`, `src/lib/openai.ts`)
 
-`chatJSON({ system, user, schema })` is the one entry point: it calls the model
-in `response_format: json_object` mode, parses defensively, and validates the
-result against a Zod schema before it reaches the database. Each feature
-(`extract-jd`, `match-resume`, `pick-resume`, `draft-message`, `summarize-thread`,
-`embed`) is a thin prompt + schema module. Extraction results are cached on the
-row so re-runs are explicit.
+`chatJSON({ system, user, schema })` is the one entry point: it requests
+`response_format: json_object`, strips a stray ` ```json ` fence if the endpoint
+added one, retries `429`s with backoff, drops `response_format` and retries if an
+endpoint rejects it, sends `reasoning_effort: minimal` to thinking models (Gemini
+otherwise spends the token budget on hidden reasoning and truncates the JSON),
+then validates against a Zod schema before anything touches the database. Each
+feature (`extract-jd`, `match-resume`, `pick-resume`, `draft-message`,
+`summarize-thread`, `embed`) is a thin prompt + schema module; AI form actions
+surface a failure inline instead of throwing to the route boundary. Extraction
+results are cached on the row so re-runs are explicit.
 
 The résumé and outreach prompts encode a specific workflow: score the ATS fit
 before and after, separate hard-requirement gaps from nice-to-haves, rewrite
@@ -144,11 +169,12 @@ availability, a "never claim" list) into every generation.
 ### Gmail (`src/lib/gmail.ts`)
 
 Raw `fetch` against the Gmail REST API — no SDK. The Google access token comes
-from the NextAuth `Account` row and is refreshed against the Google token
-endpoint when stale. MIME payloads are walked to pull `text/plain` (falling back
-to stripped HTML). `syncInbox()` upserts threads/messages, summarizes only new or
-changed threads, and best-effort links each thread to an application by company
-name / sender domain.
+from the NextAuth `Account` row; the `signIn` callback re-persists the tokens on
+every login (the Prisma adapter only writes them on first link), and a stale
+token that 401s triggers one forced refresh + retry. MIME payloads are walked to
+pull `text/plain` (falling back to stripped HTML). `syncInbox()` upserts
+threads/messages, summarizes only new or changed threads, best-effort links each
+thread to an application, and can create a new application straight from a thread.
 
 ### Semantic search (`src/lib/search.ts`)
 
@@ -168,9 +194,11 @@ aren't per-user scoped.
 
 ### Rendering
 
-All authenticated routes are `force-dynamic` (they read Postgres per request).
-Mutations are Server Actions with `revalidatePath`; interactive pending states
-use `useActionState` / `useFormStatus`.
+All authenticated routes are `force-dynamic` (they read Postgres per request);
+pages that trigger LLM calls set `maxDuration = 60`, and `vercel.json` pins
+functions to one region so they sit next to the database. Mutations are Server
+Actions with `revalidatePath`; interactive pending states use `useActionState` /
+`useFormStatus`.
 
 ## Scripts
 
@@ -178,9 +206,9 @@ use `useActionState` / `useFormStatus`.
 | --- | --- |
 | `npm run dev` | dev server |
 | `npm run build` / `vercel-build` | production build (the latter also runs `prisma migrate deploy`) |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest unit tests |
-| `npm run db:up` / `db:migrate` / `db:deploy` / `db:seed` / `db:studio` / `db:reset` | database |
+| `npm run typecheck` | `next typegen && tsc --noEmit` |
+| `npm run lint` / `npm test` | ESLint / Vitest |
+| `npm run db:up` / `db:migrate` / `db:deploy` / `db:seed` / `db:seed:demo` / `db:studio` / `db:reset` | database |
 
 ## Tests & CI
 
