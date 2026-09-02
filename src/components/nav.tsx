@@ -12,8 +12,10 @@ import {
   Search,
   UserRound,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { doSignOut } from "@/lib/actions/auth";
 
 const links = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -34,7 +36,13 @@ function useActive() {
       : pathname === href || pathname.startsWith(href + "/");
 }
 
-export function Nav({ viewerName }: { viewerName: string }) {
+export function Nav({
+  viewerName,
+  canSignOut,
+}: {
+  viewerName: string;
+  canSignOut: boolean;
+}) {
   const isActive = useActive();
 
   return (
@@ -68,6 +76,17 @@ export function Nav({ viewerName }: { viewerName: string }) {
       <div className="mt-auto px-2.5 pt-6 text-xs text-muted">
         Signed in as{" "}
         <span className="font-medium text-foreground">{viewerName}</span>
+        {canSignOut && (
+          <form action={doSignOut} className="mt-2">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-1.5 text-muted hover:text-foreground"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign out
+            </button>
+          </form>
+        )}
       </div>
     </nav>
   );
