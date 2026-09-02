@@ -1,3 +1,6 @@
+import { Check } from "lucide-react";
+import { setSubmittedResume } from "@/lib/actions/applications";
+import { SubmitButton } from "@/components/submit-button";
 import { fmtDateTime } from "@/lib/utils";
 
 type Rewrite = {
@@ -9,6 +12,7 @@ type Rewrite = {
 
 export type AtsReviewData = {
   id: string;
+  resumeVersionId: string;
   resumeLabel: string;
   createdAt: string;
   model: string | null;
@@ -35,11 +39,24 @@ function scoreColor(s: number) {
       : "text-rose-500";
 }
 
-export function AtsReview({ m }: { m: AtsReviewData }) {
+export function AtsReview({
+  m,
+  applicationId,
+  submittedResumeVersionId,
+}: {
+  m: AtsReviewData;
+  applicationId: string;
+  submittedResumeVersionId: string | null;
+}) {
   const delta = m.scoreAfter - m.scoreBefore;
+  const isSubmitted = submittedResumeVersionId === m.resumeVersionId;
 
   return (
-    <div className="rounded-lg border border-border p-3">
+    <div
+      className={`rounded-lg border p-3 ${
+        isSubmitted ? "border-emerald-400/60 bg-emerald-50/40 dark:bg-emerald-950/20" : "border-border"
+      }`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium">
@@ -47,6 +64,11 @@ export function AtsReview({ m }: { m: AtsReviewData }) {
             {m.autoPicked && (
               <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary dark:text-indigo-300">
                 auto-picked
+              </span>
+            )}
+            {isSubmitted && (
+              <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                submitted
               </span>
             )}
           </p>
@@ -85,6 +107,29 @@ export function AtsReview({ m }: { m: AtsReviewData }) {
         <p className="mt-2 text-sm text-muted">{m.scoreRationale}</p>
       )}
       {m.verdict && <p className="mt-2 text-sm">{m.verdict}</p>}
+
+      <form action={setSubmittedResume} className="mt-2">
+        <input type="hidden" name="id" value={applicationId} />
+        <input type="hidden" name="resumeVersionId" value={m.resumeVersionId} />
+        <input
+          type="hidden"
+          name="current"
+          value={submittedResumeVersionId ?? ""}
+        />
+        <SubmitButton
+          size="sm"
+          variant={isSubmitted ? "secondary" : "ghost"}
+          pendingText="…"
+        >
+          {isSubmitted ? (
+            <>
+              <Check className="h-3.5 w-3.5" /> Submitted — click to unmark
+            </>
+          ) : (
+            "Mark as the résumé I submitted"
+          )}
+        </SubmitButton>
+      </form>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Bullets

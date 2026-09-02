@@ -165,6 +165,10 @@ model Application {
   jdExtractedAt  DateTime?
   jdExtractModel String?
 
+  // Which résumé version was actually sent with this application.
+  submittedResumeVersionId String?
+  submittedResumeVersion   ResumeVersion? @relation("SubmittedResume", fields: [submittedResumeVersionId], references: [id], onDelete: SetNull)
+
   statusEvents StatusEvent[]
   contacts     Contact[]
   deadlines    Deadline[]
@@ -313,17 +317,18 @@ enum ResumeKind {
 }
 
 model ResumeVersion {
-  id            String       @id @default(cuid())
+  id            String        @id @default(cuid())
   label         String // "Dynamics 365", "Generic SWE", ...
-  kind          ResumeKind   @default(OTHER)
+  kind          ResumeKind    @default(OTHER)
   specialtyNote String? // what this version is tuned for — used for auto-select
   fileName      String?
   filePath      String? // path under /uploads
   mimeType      String?
-  content       String       @db.Text // parsed plain text
-  isDefault     Boolean      @default(false)
-  createdAt     DateTime     @default(now())
+  content       String        @db.Text // parsed plain text
+  isDefault     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
   matchScores   MatchScore[]
+  submittedFor  Application[] @relation("SubmittedResume")
 }
 
 /// One ATS-style review of a résumé version against an application's JD.

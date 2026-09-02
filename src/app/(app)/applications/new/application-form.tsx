@@ -8,7 +8,13 @@ import {
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { ALL_STATUSES, STATUS_META } from "@/lib/status";
 
-export function ApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
+export function ApplicationForm({
+  aiEnabled,
+  resumes,
+}: {
+  aiEnabled: boolean;
+  resumes: { id: string; label: string }[];
+}) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     createApplication,
     {},
@@ -64,6 +70,18 @@ export function ApplicationForm({ aiEnabled }: { aiEnabled: boolean }) {
         <Field label="Application URL" hint="Where you actually submitted it.">
           <Input name="applicationUrl" type="url" placeholder="career portal / LinkedIn link" />
         </Field>
+        {resumes.length > 0 && (
+          <Field label="Résumé sent">
+            <Select name="submittedResumeVersionId" defaultValue="">
+              <option value="">Not set</option>
+              {resumes.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <Field label="Salary min ($)">
             <Input name="salaryMin" inputMode="numeric" placeholder="120000" />
