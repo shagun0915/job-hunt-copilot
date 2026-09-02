@@ -31,11 +31,16 @@ async function getGoogleAccount(): Promise<GoogleAccount> {
 }
 
 /** Return a valid access token, refreshing via the Google token endpoint if stale. */
-async function getAccessToken(): Promise<string> {
+async function getAccessToken(force = false): Promise<string> {
   const account = await getGoogleAccount();
   const now = Math.floor(Date.now() / 1000);
 
-  if (account.access_token && account.expires_at && account.expires_at - 60 > now) {
+  if (
+    !force &&
+    account.access_token &&
+    account.expires_at &&
+    account.expires_at - 60 > now
+  ) {
     return account.access_token;
   }
   if (!account.refresh_token) {
@@ -75,12 +80,18 @@ async function getAccessToken(): Promise<string> {
 }
 
 async function gmail<T>(path: string, params?: Record<string, string>): Promise<T> {
-  const token = await getAccessToken();
   const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`);
   for (const [k, v] of Object.entries(params ?? {})) url.searchParams.set(k, v);
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+
+  const call = (token: string) =>
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+
+  let res = await call(await getAccessToken());
+  // A stored token can be revoked before it "expires" (e.g. re-auth elsewhere) —
+  // one forced refresh + retry on 401 recovers without a re-login.
+  if (res.status === 401) {
+    res = await call(await getAccessToken(true));
+  }
   if (!res.ok) {
     throw new Error(`Gmail API ${path} → ${res.status} ${await res.text()}`);
   }

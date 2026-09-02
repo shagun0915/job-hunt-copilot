@@ -36,9 +36,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       ]
     : [],
   callbacks: {
-    async signIn({ user }) {
-      if (!env.allowedEmail) return true;
-      return (user.email ?? "").toLowerCase() === env.allowedEmail;
+    async signIn({ user, account }) {
+      if (env.allowedEmail) {
+        const ok = (user.email ?? "").toLowerCase() === env.allowedEmail;
+        if (!ok) return false;
+      }
+
+      // The Prisma adapter only writes Google tokens when the Account row is
+      // first linked — it never refreshes them on subsequent logins. Persist
+      // the fresh tokens here so Gmail sync doesn't keep using a stale one.
+      if (account?.provider === "google" && account.providerAccountId) {
+        await prisma.account.updateMany({
+          where: {
+            provider: "google",
+            providerAccountId: account.providerAccountId,
+          },
+          data: {
+            access_token: account.access_token,
+            expires_at: account.expires_at,
+            scope: account.scope,
+            token_type: account.token_type,
+            id_token: account.id_token,
+            ...(account.refresh_token
+              ? { refresh_token: account.refresh_token }
+              : {}),
+          },
+        });
+      }
+      return true;
     },
   },
   pages: { signIn: "/signin" },
