@@ -83,6 +83,9 @@ export async function createApplication(
 
   const appliedAtOverride = parseDateInput(formData.get("appliedAt"));
 
+  const submittedResumeVersionId =
+    String(formData.get("submittedResumeVersionId") ?? "") || null;
+
   const app = await prisma.application.create({
     data: {
       companyId: company.id,
@@ -91,6 +94,7 @@ export async function createApplication(
       location: v.location || null,
       seniority: v.seniority || null,
       workArrangement: parseArrangement(formData.get("workArrangement")),
+      submittedResumeVersionId,
       source: v.source || null,
       sourceUrl: v.sourceUrl ?? null,
       applicationUrl: String(formData.get("applicationUrl") ?? "").trim() || null,
@@ -154,6 +158,8 @@ export async function updateApplication(
       seniority: v.seniority || null,
       location: v.location || null,
       workArrangement: parseArrangement(formData.get("workArrangement")),
+      submittedResumeVersionId:
+        String(formData.get("submittedResumeVersionId") ?? "") || null,
       source: v.source || null,
       sourceUrl: v.sourceUrl || null,
       applicationUrl: String(formData.get("applicationUrl") ?? "").trim() || null,
@@ -168,6 +174,19 @@ export async function updateApplication(
 
   revalidatePath(`/applications/${v.id}`);
   return { ok: true };
+}
+
+export async function setSubmittedResume(formData: FormData) {
+  await requireViewer();
+  const id = String(formData.get("id"));
+  const current = String(formData.get("current") ?? "");
+  const pick = String(formData.get("resumeVersionId") ?? "");
+  // Clicking the already-marked version clears it (toggle).
+  await prisma.application.update({
+    where: { id },
+    data: { submittedResumeVersionId: current === pick ? null : pick || null },
+  });
+  revalidatePath(`/applications/${id}`);
 }
 
 export async function setStatus(formData: FormData) {

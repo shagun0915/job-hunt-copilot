@@ -20,12 +20,15 @@ type App = {
   sourceUrl: string | null;
   applicationUrl: string | null;
   appliedAt: string | null;
+  submittedResumeVersionId: string | null;
   salaryMin: number | null;
   salaryMax: number | null;
   salaryNote: string | null;
   notes: string | null;
   jdText: string | null;
 };
+
+type ResumeOption = { id: string; label: string };
 
 const input =
   "h-8 w-full rounded-lg border border-border bg-surface px-2 text-sm";
@@ -43,11 +46,20 @@ function dateInputValue(iso: string | null) {
   return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
 }
 
-export function EditDetails({ app }: { app: App }) {
+export function EditDetails({
+  app,
+  resumes,
+}: {
+  app: App;
+  resumes: ResumeOption[];
+}) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<ActionState, FormData>(
     updateApplication,
     {},
+  );
+  const submittedResume = resumes.find(
+    (r) => r.id === app.submittedResumeVersionId,
   );
 
   return (
@@ -79,6 +91,7 @@ export function EditDetails({ app }: { app: App }) {
               v={app.workArrangement ? ARRANGEMENT_LABEL[app.workArrangement] : null}
             />
             <Row k="Source" v={app.source} />
+            <Row k="Résumé sent" v={submittedResume?.label ?? null} />
             <LinkRow k="Job posting" href={app.sourceUrl} />
             <LinkRow k="Application" href={app.applicationUrl} />
             <Row
@@ -161,6 +174,20 @@ export function EditDetails({ app }: { app: App }) {
               placeholder="Application URL (where you submitted)"
               className={input}
             />
+            {resumes.length > 0 && (
+              <select
+                name="submittedResumeVersionId"
+                defaultValue={app.submittedResumeVersionId ?? ""}
+                className={input}
+              >
+                <option value="">Résumé sent — not set</option>
+                {resumes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    Résumé sent: {r.label}
+                  </option>
+                ))}
+              </select>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               <input

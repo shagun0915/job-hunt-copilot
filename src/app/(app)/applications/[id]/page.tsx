@@ -264,8 +264,11 @@ export default async function ApplicationDetail({
                 {app.matchScores.map((m) => (
                   <AtsReview
                     key={m.id}
+                    applicationId={app.id}
+                    submittedResumeVersionId={app.submittedResumeVersionId}
                     m={{
                       id: m.id,
+                      resumeVersionId: m.resumeVersionId,
                       resumeLabel: m.resumeVersion.label,
                       createdAt: m.createdAt.toISOString(),
                       model: m.model,
@@ -475,7 +478,10 @@ export default async function ApplicationDetail({
 
         {/* sidebar */}
         <div className="space-y-6">
-          <EditDetails app={JSON.parse(JSON.stringify(app))} />
+          <EditDetails
+            app={JSON.parse(JSON.stringify(app))}
+            resumes={resumes.map((r) => ({ id: r.id, label: r.label }))}
+          />
 
           {/* contacts */}
           <Card>
