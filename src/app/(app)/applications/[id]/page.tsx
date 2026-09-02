@@ -78,10 +78,13 @@ export default async function ApplicationDetail({
           app.company.name,
           app.location,
           app.seniority,
+          // skip the work-arrangement label if the location already implies it
           app.workArrangement &&
-            { ONSITE: "On-site", REMOTE: "Remote", HYBRID: "Hybrid" }[
-              app.workArrangement
-            ],
+          !new RegExp(app.workArrangement, "i").test(app.location ?? "")
+            ? { ONSITE: "On-site", REMOTE: "Remote", HYBRID: "Hybrid" }[
+                app.workArrangement
+              ]
+            : null,
         ]
           .filter(Boolean)
           .join(" · ")}
