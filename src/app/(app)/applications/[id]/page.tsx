@@ -74,20 +74,40 @@ export default async function ApplicationDetail({
 
       <PageHeader
         title={app.role}
-        description={`${app.company.name}${app.location ? ` · ${app.location}` : ""}${
-          app.seniority ? ` · ${app.seniority}` : ""
-        }`}
+        description={[
+          app.company.name,
+          app.location,
+          app.seniority,
+          app.workArrangement &&
+            { ONSITE: "On-site", REMOTE: "Remote", HYBRID: "Hybrid" }[
+              app.workArrangement
+            ],
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
-          app.sourceUrl ? (
-            <a
-              href={app.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm hover:bg-surface-2"
-            >
-              <ExternalLink className="h-4 w-4" /> Posting
-            </a>
-          ) : null
+          <div className="flex gap-2">
+            {app.sourceUrl && (
+              <a
+                href={app.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm hover:bg-surface-2"
+              >
+                <ExternalLink className="h-4 w-4" /> Posting
+              </a>
+            )}
+            {app.applicationUrl && (
+              <a
+                href={app.applicationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm hover:bg-surface-2"
+              >
+                <ExternalLink className="h-4 w-4" /> Application
+              </a>
+            )}
+          </div>
         }
       />
 
