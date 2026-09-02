@@ -139,6 +139,8 @@ export async function runInboxSync(maxThreads = 15): Promise<SyncResult> {
         data: {
           summary: data.summary,
           category: data.category,
+          guessedCompany: data.company ?? null,
+          guessedRole: data.role ?? null,
           actionNeeded: data.actionNeeded,
           actionNote: data.actionNote ?? null,
           summarizedAt: new Date(),

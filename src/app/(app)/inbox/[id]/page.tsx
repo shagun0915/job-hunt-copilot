@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Card, CardBody, PageHeader } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
-import { linkThreadToApplication } from "@/lib/actions/inbox";
+import {
+  createApplicationFromThread,
+  linkThreadToApplication,
+} from "@/lib/actions/inbox";
+import { ALL_STATUSES, STATUS_META } from "@/lib/status";
 import { fmtDateTime } from "@/lib/utils";
 
 export default async function ThreadDetail({
@@ -87,31 +91,101 @@ export default async function ThreadDetail({
           <Card>
             <CardBody>
               <h2 className="mb-2 text-sm font-semibold">Linked application</h2>
-              <form action={linkThreadToApplication} className="space-y-2">
-                <input type="hidden" name="threadId" value={thread.id} />
-                <select
-                  name="applicationId"
-                  defaultValue={thread.applicationId ?? ""}
-                  className="h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm"
-                >
-                  <option value="">— none —</option>
-                  {apps.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.company.name} · {a.role}
-                    </option>
-                  ))}
-                </select>
-                <SubmitButton size="sm" pendingText="Saving…">
-                  Save link
-                </SubmitButton>
-              </form>
-              {thread.application && (
-                <Link
-                  href={`/applications/${thread.application.id}`}
-                  className="mt-2 inline-block text-xs text-primary hover:underline dark:text-indigo-300"
-                >
-                  Open {thread.application.company.name} →
-                </Link>
+
+              {thread.application ? (
+                <>
+                  <Link
+                    href={`/applications/${thread.application.id}`}
+                    className="text-sm font-medium text-primary hover:underline dark:text-indigo-300"
+                  >
+                    {thread.application.company.name} · {thread.application.role} →
+                  </Link>
+                  <form
+                    action={linkThreadToApplication}
+                    className="mt-3 flex items-center gap-2"
+                  >
+                    <input type="hidden" name="threadId" value={thread.id} />
+                    <select
+                      name="applicationId"
+                      defaultValue={thread.applicationId ?? ""}
+                      className="h-8 flex-1 rounded-lg border border-border bg-surface px-2 text-xs"
+                    >
+                      <option value="">— unlink —</option>
+                      {apps.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.company.name} · {a.role}
+                        </option>
+                      ))}
+                    </select>
+                    <SubmitButton size="sm" variant="ghost" pendingText="…">
+                      Change
+                    </SubmitButton>
+                  </form>
+                </>
+              ) : (
+                <>
+                  {apps.length > 0 && (
+                    <form
+                      action={linkThreadToApplication}
+                      className="mb-3 space-y-2"
+                    >
+                      <input type="hidden" name="threadId" value={thread.id} />
+                      <select
+                        name="applicationId"
+                        defaultValue=""
+                        className="h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm"
+                      >
+                        <option value="">Link to an existing one…</option>
+                        {apps.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.company.name} · {a.role}
+                          </option>
+                        ))}
+                      </select>
+                      <SubmitButton size="sm" variant="secondary" pendingText="…">
+                        Link
+                      </SubmitButton>
+                    </form>
+                  )}
+
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                    or create one from this email
+                  </p>
+                  <form
+                    action={createApplicationFromThread}
+                    className="space-y-2"
+                  >
+                    <input type="hidden" name="threadId" value={thread.id} />
+                    <input
+                      name="company"
+                      required
+                      defaultValue={thread.guessedCompany ?? ""}
+                      placeholder="Company"
+                      className="h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm"
+                    />
+                    <input
+                      name="role"
+                      required
+                      defaultValue={thread.guessedRole ?? ""}
+                      placeholder="Role"
+                      className="h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm"
+                    />
+                    <select
+                      name="status"
+                      defaultValue="APPLIED"
+                      className="h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm"
+                    >
+                      {ALL_STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {STATUS_META[s].label}
+                        </option>
+                      ))}
+                    </select>
+                    <SubmitButton size="sm" pendingText="Creating…">
+                      Create &amp; link
+                    </SubmitButton>
+                  </form>
+                </>
               )}
             </CardBody>
           </Card>
