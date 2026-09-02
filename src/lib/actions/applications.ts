@@ -7,6 +7,7 @@ import type { ApplicationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireViewer } from "@/lib/viewer";
 import { extractJD } from "@/lib/ai/extract-jd";
+import { aiErrorMessage } from "@/lib/openai";
 import { ALL_STATUSES } from "@/lib/status";
 
 async function upsertCompany(name: string) {
@@ -180,7 +181,7 @@ export async function deleteApplication(formData: FormData) {
 }
 
 /** Run LLM extraction over an application's stored JD text and persist results. */
-export async function runExtractJD(applicationId: string) {
+export async function runExtractJD(applicationId: string): Promise<ActionState> {
   await requireViewer();
   const app = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -190,30 +191,35 @@ export async function runExtractJD(applicationId: string) {
     return { error: "Add a job description first (at least a paragraph)." };
   }
 
-  const { data, model } = await extractJD(app.jdText);
-
-  await prisma.application.update({
-    where: { id: applicationId },
-    data: {
-      jdSummary: data.summary,
-      jdRequirements: data.requirements,
-      jdNiceToHaves: data.niceToHaves,
-      jdTechStack: data.techStack,
-      jdRedFlags: data.redFlags,
-      jdExtractedAt: new Date(),
-      jdExtractModel: model,
-      seniority: data.seniority || undefined,
-      location: data.location || undefined,
-      remote: data.remote ?? undefined,
-      salaryNote: data.salaryText || undefined,
-    },
-  });
+  try {
+    const { data, model } = await extractJD(app.jdText);
+    await prisma.application.update({
+      where: { id: applicationId },
+      data: {
+        jdSummary: data.summary,
+        jdRequirements: data.requirements,
+        jdNiceToHaves: data.niceToHaves,
+        jdTechStack: data.techStack,
+        jdRedFlags: data.redFlags,
+        jdExtractedAt: new Date(),
+        jdExtractModel: model,
+        seniority: data.seniority || undefined,
+        location: data.location || undefined,
+        remote: data.remote ?? undefined,
+        salaryNote: data.salaryText || undefined,
+      },
+    });
+  } catch (e) {
+    return { error: aiErrorMessage(e) };
+  }
 
   revalidatePath(`/applications/${applicationId}`);
   return { ok: true };
 }
 
-export async function extractJDAction(formData: FormData) {
-  const id = String(formData.get("id"));
-  await runExtractJD(id);
+export async function extractJDAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runExtractJD(String(formData.get("id")));
 }

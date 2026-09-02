@@ -12,7 +12,14 @@ export type { SyncResult };
 
 export async function syncInbox(): Promise<SyncResult> {
   await requireViewer();
-  const result = await runInboxSync();
+  let result: SyncResult;
+  try {
+    result = await runInboxSync();
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Inbox sync failed. Try again.",
+    };
+  }
   revalidatePath("/inbox");
   revalidatePath("/deadlines");
   revalidatePath("/");

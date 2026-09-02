@@ -6,6 +6,7 @@ import { aiConfigured } from "@/lib/env";
 import { Card, CardBody, PageHeader } from "@/components/ui";
 import { StatusBadge } from "@/components/status-badge";
 import { SubmitButton } from "@/components/submit-button";
+import { AiActionButton } from "@/components/ai-action-button";
 import { fmtDate, fmtDateTime, fmtSalary } from "@/lib/utils";
 import { ALL_STATUSES, STATUS_META } from "@/lib/status";
 import {
@@ -27,6 +28,9 @@ import { runResumeMatch } from "@/lib/actions/resumes";
 import { EditDetails } from "./edit-details";
 import { DraftPanel } from "./drafts";
 import { AtsReview, type AtsReviewData } from "./ats-review";
+
+// AI actions (extract, ATS pass) can run 20-40s on a slow model.
+export const maxDuration = 60;
 
 export default async function ApplicationDetail({
   params,
@@ -129,16 +133,13 @@ export default async function ApplicationDetail({
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Job description</h2>
                 {aiConfigured && app.jdText ? (
-                  <form action={extractJDAction}>
-                    <input type="hidden" name="id" value={app.id} />
-                    <SubmitButton
-                      size="sm"
-                      variant="secondary"
-                      pendingText="Analyzing…"
-                    >
-                      {hasExtraction ? "Re-run AI extract" : "AI extract"}
-                    </SubmitButton>
-                  </form>
+                  <AiActionButton
+                    action={extractJDAction}
+                    hidden={{ id: app.id }}
+                    pendingText="Analyzing…"
+                  >
+                    {hasExtraction ? "Re-run AI extract" : "AI extract"}
+                  </AiActionButton>
                 ) : null}
               </div>
 
@@ -213,32 +214,30 @@ export default async function ApplicationDetail({
                   Set OPENAI_API_KEY to score resume fit.
                 </p>
               ) : (
-                <form
-                  action={runResumeMatch}
-                  className="mb-4 flex flex-wrap items-center gap-2"
-                >
-                  <input type="hidden" name="applicationId" value={app.id} />
-                  <select
-                    name="resumeVersionId"
-                    defaultValue="auto"
-                    className="h-8 rounded-lg border border-border bg-surface px-2 text-sm"
-                  >
-                    <option value="auto">Auto-pick résumé</option>
-                    {resumes.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.label}
-                        {r.isDefault ? " (default)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <SubmitButton
-                    size="sm"
-                    variant="secondary"
+                <div className="mb-4">
+                  <AiActionButton
+                    action={runResumeMatch}
+                    hidden={{ applicationId: app.id }}
                     pendingText="Running ATS pass…"
+                    extra={
+                      <select
+                        name="resumeVersionId"
+                        defaultValue="auto"
+                        className="h-8 rounded-lg border border-border bg-surface px-2 text-sm"
+                      >
+                        <option value="auto">Auto-pick résumé</option>
+                        {resumes.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.label}
+                            {r.isDefault ? " (default)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    }
                   >
                     Run ATS pass
-                  </SubmitButton>
-                </form>
+                  </AiActionButton>
+                </div>
               )}
 
               <div className="space-y-4">

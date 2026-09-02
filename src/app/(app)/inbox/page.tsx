@@ -5,6 +5,7 @@ import { Card, CardBody, EmptyState, PageHeader } from "@/components/ui";
 import { fmtDate } from "@/lib/utils";
 import { SyncButton } from "./sync-button";
 
+export const maxDuration = 60;
 export const metadata = { title: "Inbox · Job Hunt Copilot" };
 
 const CATEGORY_LABEL: Record<string, string> = {
