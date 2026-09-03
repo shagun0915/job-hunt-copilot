@@ -35,11 +35,39 @@ export const env = {
   cronSecret: process.env.CRON_SECRET ?? "",
 };
 
-/** Google OAuth is wired up — enables real sign-in and Gmail sync. */
+/** Google OAuth is wired up - enables real sign-in and Gmail sync. */
 export const authConfigured = Boolean(env.googleId && env.googleSecret);
 
 /** LLM features (JD extraction, resume match, email summaries) are available. */
 export const aiConfigured = Boolean(env.openaiKey);
+
+/**
+ * A deployed instance must be gated by real auth. Without it, getViewer() would
+ * hand every anonymous visitor a synthetic single user and expose every résumé,
+ * email body and application - read and write. Vercel sets VERCEL_ENV on every
+ * deployment (production, preview and its own "development"); local dev and CI
+ * do not. Opt out only with an explicit ALLOW_LOCAL_MODE=1 (not recommended).
+ */
+const onDeployedHost = Boolean(process.env.VERCEL_ENV);
+const allowLocalMode = process.env.ALLOW_LOCAL_MODE === "1";
+
+/** True when this instance must not run without configured, restricted auth. */
+export const enforceAuth = onDeployedHost && !allowLocalMode;
+
+if (enforceAuth && !authConfigured) {
+  throw new Error(
+    "AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET are required on a deployed instance - " +
+      "without them every route and server action is public. Set them, or set " +
+      "ALLOW_LOCAL_MODE=1 to intentionally run ungated.",
+  );
+}
+if (enforceAuth && authConfigured && !env.allowedEmail) {
+  throw new Error(
+    "ALLOWED_EMAIL is required on a deployed instance - a blank value lets any " +
+      "Google account sign in and read/write everything. Set it to your address, " +
+      "or set ALLOW_LOCAL_MODE=1 to allow every account.",
+  );
+}
 
 /** When auth is not configured we run ungated in local single-user mode. */
 export const localMode = !authConfigured;

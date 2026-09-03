@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { authConfigured } from "@/lib/env";
+import { authConfigured, enforceAuth } from "@/lib/env";
 
 export type Viewer = {
   name: string;
@@ -14,6 +14,10 @@ export type Viewer = {
  */
 export async function getViewer(): Promise<Viewer | null> {
   if (!authConfigured) {
+    // On a deployed host an unauthenticated request stays unauthenticated - we
+    // never fall back to the synthetic user. (env.ts also throws at boot when
+    // this happens, so this is defense in depth.)
+    if (enforceAuth) return null;
     return { name: "You", email: null, image: null, local: true };
   }
   const session = await auth();
