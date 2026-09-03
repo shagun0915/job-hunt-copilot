@@ -307,7 +307,7 @@ Bengaluru, India · Immediately available
 [REPLACE THIS TEMPLATE WITH YOUR REAL SPECIALIZED RÉSUMÉ]
 
 EXPERIENCE
-Senior Software Engineer, Visa (Oct 2025 – Aug 2025)   [dates per your real resume]
+Senior Software Engineer, Visa (Oct 2025 – Jul 2026)
 - Built Dynamics 365 CE customizations: plugins, custom workflow activities, and model-driven app configuration
 - Delivered Power Automate flows and canvas apps for internal business teams
 - Hands-on with Microsoft Copilot Studio and AI Builder for agentic automation
@@ -337,7 +337,7 @@ Bengaluru, India · Immediately available
 [REPLACE THIS TEMPLATE WITH YOUR REAL GENERIC RÉSUMÉ]
 
 EXPERIENCE
-Senior Software Engineer, Visa (Jun 2023 – Aug 2025)
+Senior Software Engineer, Visa (Oct 2025 – Jul 2026) · Software Engineer (Jun 2023 – Sep 2025)
 - Designed and shipped backend services and integrations in C#/.NET on Azure
 - Automated business processes and built internal tools used across teams
 - Recent work on AI/agentic features using Microsoft Copilot Studio and AI Builder
