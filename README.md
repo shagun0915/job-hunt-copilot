@@ -200,6 +200,35 @@ functions to one region so they sit next to the database. Mutations are Server
 Actions with `revalidatePath`; interactive pending states use `useActionState` /
 `useFormStatus`.
 
+## Security model
+
+Single-user app, so the usual multi-tenant surface (IDOR, per-row authz, role
+escalation) doesn't exist — every request is either the one allowed Google
+account or nobody. What is worth calling out:
+
+- **Prompt injection is the real threat here.** JD text scraped from public ATS
+  boards and Gmail message bodies both flow into LLM calls. The blast radius is
+  contained by construction: every `chatJSON()` call runs in JSON mode against a
+  Zod schema, so a malicious JD can at worst produce junk fields that fail
+  validation — model output never becomes shell, SQL, or a tool call. Drafts are
+  always shown for review and never sent automatically.
+- **CSP is nonce-based** (`src/proxy.ts`): per-request nonce, `strict-dynamic`,
+  no `'unsafe-inline'` / `'unsafe-eval'` for scripts in production. This is why
+  every route is `force-dynamic` — Next stamps the request nonce onto its script
+  tags at render time. Also sets HSTS, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, a locked-down `Permissions-Policy`, and
+  `frame-ancestors 'none'`.
+- **Secrets**: `gitleaks` clean on the full history — no secret has ever been
+  committed. Real values live only in gitignored `.env` / `.env.local` locally
+  and in Vercel's env store in production. `.env.example` documents every var.
+- **Cron endpoint** (`/api/cron/sync-inbox`) is gated by a `CRON_SECRET` bearer
+  token; it's the only unauthenticated route and it does nothing without the
+  Gmail refresh token in the database.
+- **Known low-severity advisory**: `npm audit` flags `deepmerge-ts` (stack
+  exhaustion) pulled in transitively by the Prisma **CLI**. It's a build-time dev
+  dependency with no attacker-reachable path at runtime, and the "fix" downgrades
+  Prisma across a major version, so it's accepted rather than patched.
+
 ## Scripts
 
 | | |
