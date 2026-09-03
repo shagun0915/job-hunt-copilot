@@ -39,7 +39,15 @@ Single-user job-search tracker with LLM assists. See `README.md` for the full pi
   `requireViewer()`, ending with `revalidatePath`. Logic that also runs from a
   route handler (e.g. cron) lives in a plain module (`src/lib/inbox-sync.ts`,
   `src/lib/search.ts`) — a `"use server"` file may only export async actions.
-- All authenticated routes are `force-dynamic` (set once in `src/app/(app)/layout.tsx`).
+- **Every** route is `force-dynamic` (root layout + `(app)` layout). Required by
+  the nonce-based CSP in `src/proxy.ts` — Next stamps the per-request nonce onto
+  script tags only when rendering per-request. Don't add static routes.
+- Security headers + CSP are in `src/proxy.ts` (Next 16 renamed middleware). CSP
+  is nonce + `strict-dynamic`, no `'unsafe-inline'`/`'unsafe-eval'` for scripts.
+  Adding an external script/style/font/image origin means editing that CSP.
+- A deployed host (`VERCEL_ENV` set) must have `AUTH_GOOGLE_ID/SECRET` +
+  `ALLOWED_EMAIL` — `src/lib/env.ts` throws at boot otherwise, and `getViewer()`
+  never returns the synthetic local user. `ALLOW_LOCAL_MODE=1` opts out.
 - Never nest `<form>` elements — sibling forms + hidden inputs instead.
 - Form number inputs: parse with a zod `preprocess` that maps `""` → `undefined`
   (`z.coerce.number()` turns `""` into `0` and trips `.positive()`).
