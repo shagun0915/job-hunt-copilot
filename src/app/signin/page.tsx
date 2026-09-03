@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { signIn } from "@/auth";
-import { authConfigured } from "@/lib/env";
+import { authConfigured, enforceAuth } from "@/lib/env";
 import { buttonClass } from "@/components/ui";
 
 export const metadata = { title: "Sign in · Job Hunt Copilot" };
 
 export default async function SignInPage() {
-  if (!authConfigured) redirect("/");
+  // Local mode has no sign-in - send to the app. On a deployed host that is
+  // somehow unconfigured, render the page rather than bouncing to "/" (which
+  // would redirect straight back here).
+  if (!authConfigured && !enforceAuth) redirect("/");
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
