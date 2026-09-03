@@ -5,6 +5,10 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+// Nonce-based CSP (see src/proxy.ts) needs every route rendered per-request so
+// Next can stamp the request's nonce onto its script tags.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "AI Job Hunt Copilot",
   description:
