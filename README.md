@@ -212,6 +212,14 @@ account or nobody. What is worth calling out:
   Zod schema, so a malicious JD can at worst produce junk fields that fail
   validation — model output never becomes shell, SQL, or a tool call. Drafts are
   always shown for review and never sent automatically.
+- **Schema validation doesn't catch a scam's call-to-action landing in a plain
+  string field, though** — a real inbox sync turned up two job-application
+  phishing emails (one impersonating an actual former employer) whose
+  "click here and provide your National ID" instruction was, pre-fix, repeated
+  verbatim as a trusted `→ do this` note. `summarize-thread.ts` now screens for
+  the pattern (urgency + credential/ID/payment request + a mismatched sender)
+  and the inbox UI renders a flagged thread as a warning ("this email asks...")
+  instead of an endorsed next step.
 - **CSP is nonce-based** (`src/proxy.ts`): per-request nonce, `strict-dynamic`,
   no `'unsafe-inline'` / `'unsafe-eval'` for scripts in production. This is why
   every route is `force-dynamic` — Next stamps the request nonce onto its script
