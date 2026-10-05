@@ -285,6 +285,11 @@ model EmailThread {
   guessedRole    String?
   actionNeeded   Boolean        @default(false)
   actionNote     String?
+  // Heuristic flag from the summarizer: urgency + a request for credentials,
+  // personal ID, or payment + an unverifiable sender. Not a guarantee either
+  // way — changes how actionNote is rendered (warning vs. endorsed next step).
+  possiblePhishing Boolean      @default(false)
+  phishingReason   String?
   summarizedAt   DateTime?
   messages       EmailMessage[]
   createdAt      DateTime       @default(now())

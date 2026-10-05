@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ShieldAlert } from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Card, CardBody, PageHeader } from "@/components/ui";
@@ -74,10 +75,31 @@ export default async function ThreadDetail({
                       Category: {thread.category.replace("_", " ")}
                     </p>
                   )}
-                  {thread.actionNeeded && thread.actionNote && (
-                    <p className="mt-2 rounded-lg bg-amber-100 px-2 py-1.5 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                      → {thread.actionNote}
-                    </p>
+                  {thread.possiblePhishing ? (
+                    <div className="mt-2 rounded-lg bg-rose-100 px-2 py-1.5 text-sm text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                      <p className="flex items-center gap-1.5 font-medium">
+                        <ShieldAlert className="h-4 w-4 shrink-0" />
+                        Possible phishing
+                      </p>
+                      {thread.actionNote && (
+                        <p className="mt-1">This email asks: {thread.actionNote}</p>
+                      )}
+                      {thread.phishingReason && (
+                        <p className="mt-1 text-xs text-rose-700/80 dark:text-rose-400/80">
+                          {thread.phishingReason} — verify independently
+                          (e.g. log into the company&apos;s known site
+                          directly) before clicking any link or sharing
+                          personal info.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    thread.actionNeeded &&
+                    thread.actionNote && (
+                      <p className="mt-2 rounded-lg bg-amber-100 px-2 py-1.5 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        → {thread.actionNote}
+                      </p>
+                    )
                   )}
                 </>
               ) : (

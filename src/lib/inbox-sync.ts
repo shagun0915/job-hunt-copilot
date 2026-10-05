@@ -143,6 +143,8 @@ export async function runInboxSync(maxThreads = 15): Promise<SyncResult> {
           guessedRole: data.role ?? null,
           actionNeeded: data.actionNeeded,
           actionNote: data.actionNote ?? null,
+          possiblePhishing: data.possiblePhishing,
+          phishingReason: data.phishingReason ?? null,
           summarizedAt: new Date(),
           applicationId: appId ?? undefined,
         },

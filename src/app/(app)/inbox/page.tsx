@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ShieldAlert } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { authConfigured, aiConfigured } from "@/lib/env";
 import { Card, CardBody, EmptyState, PageHeader } from "@/components/ui";
@@ -76,7 +77,13 @@ export default async function InboxPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    {t.actionNeeded && (
+                    {t.possiblePhishing && (
+                      <span className="flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                        <ShieldAlert className="h-3 w-3" />
+                        possible phishing
+                      </span>
+                    )}
+                    {t.actionNeeded && !t.possiblePhishing && (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                         action needed
                       </span>
@@ -93,10 +100,22 @@ export default async function InboxPage() {
                   <p className="mt-0.5 text-sm text-muted">
                     {t.summary ?? "Not summarized yet."}
                   </p>
-                  {t.actionNote && (
-                    <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                      → {t.actionNote}
+                  {t.possiblePhishing ? (
+                    <p className="mt-1 text-sm text-rose-700 dark:text-rose-300">
+                      ⚠ This email asks: {t.actionNote}
+                      {t.phishingReason && (
+                        <span className="block text-xs text-rose-600/80 dark:text-rose-400/80">
+                          {t.phishingReason} — verify independently before
+                          clicking anything or sharing personal info.
+                        </span>
+                      )}
                     </p>
+                  ) : (
+                    t.actionNote && (
+                      <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                        → {t.actionNote}
+                      </p>
+                    )
                   )}
                 </div>
                 <div className="shrink-0 text-right text-xs text-muted">
