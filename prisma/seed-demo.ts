@@ -444,6 +444,8 @@ async function main() {
     summary: string;
     actionNeeded: boolean;
     actionNote: string | null;
+    possiblePhishing?: boolean;
+    phishingReason?: string;
     daysAgo: number;
     link?: string;
     from: { name: string; email: string };
@@ -515,6 +517,36 @@ and wish you the best in your search.
 Segment Talent`,
     },
     {
+      gmailThreadId: "demo-phishing",
+      subject: "Verify your candidate account",
+      company: "Lighthouse Talent Group",
+      role: "Backend Engineer",
+      category: "application_ack",
+      summary:
+        "Lighthouse Talent Group sent an account-activation link after a Backend Engineer application. The link expires in 24 hours.",
+      actionNeeded: true,
+      actionNote:
+        "The email asks you to click a link to activate your candidate account within 24 hours.",
+      possiblePhishing: true,
+      phishingReason:
+        "Short-deadline urgency (expires in 24 hours) combined with a sender domain that doesn't match the company it claims to represent.",
+      daysAgo: 3,
+      from: {
+        name: "Lighthouse Talent Group",
+        email: "noreply@lighthouse-careers.verify-portal.net",
+      },
+      body: `Hi Sam,
+
+Thank you for applying to the Backend Engineer position. Your candidate
+account has been created. To continue, please verify your account and
+confirm your details, including your Social Security Number, within the
+next 24 hours or your application will be removed.
+
+Verify now: http://lighthouse-careers.verify-portal.net/activate?id=58213
+
+Lighthouse Talent Group`,
+    },
+    {
       gmailThreadId: "demo-outreach",
       subject: "Backend role at Cadence — worth a chat?",
       company: "Cadence",
@@ -549,6 +581,8 @@ Marcus`,
         guessedRole: t.role,
         actionNeeded: t.actionNeeded,
         actionNote: t.actionNote,
+        possiblePhishing: t.possiblePhishing ?? false,
+        phishingReason: t.phishingReason ?? null,
         summarizedAt: at,
         applicationId: t.link ? byName[t.link] : null,
         messages: {

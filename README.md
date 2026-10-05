@@ -1,5 +1,9 @@
 # AI Job Hunt Copilot
 
+[![CI](https://github.com/shagun0915/job-hunt-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/shagun0915/job-hunt-copilot/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Live](https://img.shields.io/badge/live-job--hunt--copilot-4f46e5)](https://job-hunt-copilot-nu.vercel.app)
+
 A single-user command center for a software job search — track every application,
 recruiter email, OA deadline, interview and résumé version in one place, with an
 LLM handling the tedious parts: reading job descriptions, triaging the inbox,
@@ -10,14 +14,28 @@ LLM-application engineering: structured extraction with Zod-validated schemas, a
 provider-agnostic model layer, graceful degradation when keys are absent, and an
 OAuth-backed Gmail integration — deployed, with CI and migrations on every push.
 
+**Live:** [job-hunt-copilot-nu.vercel.app](https://job-hunt-copilot-nu.vercel.app)
+— sign-in is restricted to my own Google account (`ALLOWED_EMAIL`, see
+[Security model](#security-model)), so a visitor will land on the sign-in screen
+rather than the app itself. The screenshots below, the walkthrough script, and
+`npm run db:seed:demo` are how to see it without my login.
+
 > A [3-minute walkthrough script](docs/DEMO_SCRIPT.md) and a demo dataset
 > (`npm run db:seed:demo`) are included for a video tour.
 
 ## Screenshots
 
-<!-- Add 2–3 images: the dashboard, an application after an ATS pass
-     (showing the "can't be closed honestly" section), and the triaged inbox.
-     e.g.  ![Dashboard](docs/img/dashboard.png)  -->
+**Dashboard** — response rate, upcoming deadlines/interviews, and the pipeline at a glance.
+![Dashboard](docs/img/dashboard.png)
+
+**ATS pass** — before→after score, the keyword gap split into hard requirements
+vs. nice-to-haves, and the gaps it refuses to paper over.
+![ATS pass showing a before/after score and an honest "can't be closed honestly" section](docs/img/ats-pass.png)
+
+**Inbox triage** — a demo thread modeled on a real phishing email this feature
+caught in my own inbox, correctly flagged instead of being echoed as a trusted
+next step (see [Security model](#security-model)).
+![Inbox with a thread flagged "possible phishing" instead of an endorsed action](docs/img/inbox-phishing.png)
 
 ## Features
 
@@ -254,3 +272,7 @@ MIME walker, salary/date formatting, status metadata. GitHub Actions
 (`.github/workflows/ci.yml`) spins up Postgres and runs migrate → typecheck →
 lint → test → build on every push and PR, all in fully-degraded mode (no API
 keys) to prove the graceful-degradation contract.
+
+## License
+
+[MIT](LICENSE) © Shagun Yadav
