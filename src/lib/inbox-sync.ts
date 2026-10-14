@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { aiConfigured } from "@/lib/env";
 import { getThread, listJobThreadIds, type GmailThread } from "@/lib/gmail";
 import { summarizeThread } from "@/lib/ai/summarize-thread";
+import { disambiguateByRole } from "@/lib/application-match";
 
 export type SyncResult = {
   error?: string;
@@ -12,9 +13,18 @@ export type SyncResult = {
   deadlines?: number;
 };
 
-/** Try to attach a thread to an existing application by company-name match. */
+/**
+ * Try to attach a thread to an existing application by company-name match.
+ * When a company has more than one tracked application (two Google roles,
+ * say), pick the one whose role text actually matches the thread — never
+ * just the most recently updated one. If the role text can't disambiguate
+ * (tie, or no overlap), return null rather than guess: the thread stays
+ * unlinked and the user resolves it from the dropdown on the thread page.
+ */
 async function guessApplication(
   companyGuess: string | null | undefined,
+  roleGuess: string | null | undefined,
+  subject: string | null,
   fromEmail: string | undefined,
 ): Promise<string | null> {
   const candidates: string[] = [];
@@ -22,13 +32,16 @@ async function guessApplication(
   const domain = fromEmail?.split("@")[1]?.split(".")[0];
   if (domain && domain.length > 2) candidates.push(domain);
 
+  const signalText = [roleGuess, subject].filter(Boolean).join(" ");
+
   for (const c of candidates) {
-    const app = await prisma.application.findFirst({
+    const apps = await prisma.application.findMany({
       where: { company: { name: { contains: c, mode: "insensitive" } } },
       orderBy: { updatedAt: "desc" },
-      select: { id: true },
+      select: { id: true, role: true },
     });
-    if (app) return app.id;
+    if (apps.length === 0) continue;
+    return disambiguateByRole(apps, signalText);
   }
   return null;
 }
@@ -73,6 +86,7 @@ async function persistThread(t: GmailThread) {
     isNew: !existing,
     hasNewMessages: newMsgs.length > 0,
     alreadySummarized: Boolean(existing?.summarizedAt),
+    existingApplicationId: existing?.applicationId ?? null,
   };
 }
 
@@ -109,8 +123,13 @@ export async function runInboxSync(maxThreads = 15): Promise<SyncResult> {
     }
     if (t.messages.length === 0) continue;
 
-    const { threadRowId, isNew, hasNewMessages, alreadySummarized } =
-      await persistThread(t);
+    const {
+      threadRowId,
+      isNew,
+      hasNewMessages,
+      alreadySummarized,
+      existingApplicationId,
+    } = await persistThread(t);
     if (isNew) created++;
     else if (hasNewMessages) updated++;
 
@@ -129,10 +148,17 @@ export async function runInboxSync(maxThreads = 15): Promise<SyncResult> {
         })),
       });
 
-      const appId = await guessApplication(
-        data.company,
-        t.messages[0]?.from.email,
-      );
+      // A thread that's already linked keeps its link — whether that came
+      // from a previous good guess or a manual correction — rather than
+      // re-guessing (and possibly flipping) it on every new reply.
+      const appId =
+        existingApplicationId ??
+        (await guessApplication(
+          data.company,
+          data.role,
+          t.subject,
+          t.messages[0]?.from.email,
+        ));
 
       await prisma.emailThread.update({
         where: { id: threadRowId },
