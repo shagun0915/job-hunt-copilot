@@ -36,6 +36,26 @@ const schema = z.object({
     })
     .nullable()
     .optional(),
+  interview: z
+    .object({
+      type: z.enum([
+        "RECRUITER_SCREEN",
+        "TECHNICAL_PHONE",
+        "ONLINE_ASSESSMENT",
+        "TAKE_HOME",
+        "SYSTEM_DESIGN",
+        "BEHAVIORAL",
+        "ONSITE",
+        "FINAL",
+        "OTHER",
+      ]),
+      scheduledAt: z.string(), // ISO 8601 datetime, with time
+      durationMin: z.number().nullable().optional(),
+      location: z.string().nullable().optional(),
+      withNames: z.array(z.string()).optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export type ThreadSummary = z.infer<typeof schema>;
@@ -66,8 +86,39 @@ Return ONLY JSON:
   phishing on its own — only flag real red flags, not every link.
 - phishingReason (string|null): one short sentence naming which signals
   triggered the flag, if possiblePhishing is true. Otherwise null.
-- deadline (object|null): if the thread implies a concrete deadline (OA due date, take-home window, "respond by", scheduling-by), return { title (string), dueAt (ISO 8601 date string), type (one of exactly: "OA", "TAKE_HOME", "APPLICATION", "RESPOND_BY", "INTERVIEW_PREP", "OTHER") }. Otherwise deadline is null.
-Today's date is provided; resolve relative dates ("by Friday", "within 5 days") against it.`;
+- deadline (object|null): if the thread implies a concrete deadline, return
+  { title (string), dueAt (ISO 8601 date string), type }. Pick type by what
+  the candidate must actually do, not just "there's a date mentioned":
+  * "OA" — an online assessment / coding test must be completed by this date
+  * "TAKE_HOME" — a take-home project/exercise is due by this date
+  * "APPLICATION" — the application itself (a form, a portal, uploading
+    documents) must be submitted/completed by this date
+  * "RESPOND_BY" — the candidate must reply, confirm, RSVP, or pick a time
+    slot by this date — nothing to complete, just a response owed (this is
+    the type for "please confirm your interview slot by Friday" style asks)
+  * "INTERVIEW_PREP" — a concrete prep task was requested (e.g. "prepare a
+    presentation for the panel") ahead of an already-scheduled interview
+  * "OTHER" — a real deadline that doesn't fit the above
+  If the thread both asks for an RSVP/response AND confirms an actual
+  scheduled interview time, you can return both a RESPOND_BY deadline (for
+  the earlier confirm-by date, if any) and an interview (below) — they
+  describe different things.
+  Otherwise deadline is null.
+- interview (object|null): ONLY when the email confirms an actual scheduled
+  interview with both a date AND a time (not just "let's find a time" or a
+  scheduling-link with no slot picked yet — that's a RESPOND_BY deadline
+  instead, not an interview). Return { type, scheduledAt (ISO 8601 datetime,
+  include the time and timezone offset if given), durationMin (number|null),
+  location (string|null — "Zoom", "onsite", a platform name, an address),
+  withNames (string[] — interviewer names and/or roles mentioned, e.g.
+  ["Priya Nair (Recruiter)"]) }. type is exactly one of: "RECRUITER_SCREEN",
+  "TECHNICAL_PHONE", "ONLINE_ASSESSMENT", "TAKE_HOME", "SYSTEM_DESIGN",
+  "BEHAVIORAL", "ONSITE", "FINAL", "OTHER" — pick by what the round actually
+  is (a recruiter call is RECRUITER_SCREEN, a coding round is
+  TECHNICAL_PHONE or ONSITE depending on format, a multi-round onsite/virtual
+  onsite loop is ONSITE, the last round before an offer is FINAL). Otherwise
+  interview is null.
+Today's date is provided; resolve relative dates ("by Friday", "within 5 days", "tomorrow at 10am") against it.`;
 
 export async function summarizeThread({
   subject,

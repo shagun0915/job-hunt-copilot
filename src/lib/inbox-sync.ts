@@ -11,6 +11,7 @@ export type SyncResult = {
   updated?: number;
   summarized?: number;
   deadlines?: number;
+  interviews?: number;
 };
 
 /**
@@ -112,6 +113,7 @@ export async function runInboxSync(maxThreads = 15): Promise<SyncResult> {
   let updated = 0;
   let summarized = 0;
   let deadlines = 0;
+  let interviews = 0;
   const today = new Date().toISOString().slice(0, 10);
 
   for (const id of ids) {
@@ -202,10 +204,49 @@ export async function runInboxSync(maxThreads = 15): Promise<SyncResult> {
           }
         }
       }
+
+      // Interview.applicationId is required, so only auto-create when the
+      // thread actually resolved to one application (never guess here).
+      if (data.interview && appId) {
+        const scheduledAt = new Date(data.interview.scheduledAt);
+        if (!Number.isNaN(scheduledAt.getTime())) {
+          const source = `email:${t.id}`;
+          const dupe = await prisma.interview.findFirst({
+            where: { applicationId: appId, source },
+          });
+          if (!dupe) {
+            await prisma.interview.create({
+              data: {
+                applicationId: appId,
+                type: data.interview.type,
+                scheduledAt,
+                durationMin: data.interview.durationMin ?? undefined,
+                location: data.interview.location ?? undefined,
+                withNames: data.interview.withNames ?? [],
+                source,
+              },
+            });
+            interviews++;
+          } else if (dupe.scheduledAt?.getTime() !== scheduledAt.getTime()) {
+            // A later message in the same thread rescheduled it — update in
+            // place rather than creating a second interview for one thread.
+            await prisma.interview.update({
+              where: { id: dupe.id },
+              data: {
+                type: data.interview.type,
+                scheduledAt,
+                durationMin: data.interview.durationMin ?? undefined,
+                location: data.interview.location ?? undefined,
+                withNames: data.interview.withNames ?? [],
+              },
+            });
+          }
+        }
+      }
     } catch {
       // summary is best-effort; the thread is already stored
     }
   }
 
-  return { scanned: ids.length, created, updated, summarized, deadlines };
+  return { scanned: ids.length, created, updated, summarized, deadlines, interviews };
 }

@@ -266,6 +266,7 @@ model Interview {
   outcome       String? // "passed", "failed", "pending", "cancelled"
   prepNotes     String?       @db.Text
   debrief       String?       @db.Text
+  source        String? // "email:<threadId>", "manual" — dedup key for auto-detected interviews
   createdAt     DateTime      @default(now())
 
   @@index([applicationId])

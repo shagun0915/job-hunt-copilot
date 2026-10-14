@@ -22,7 +22,8 @@ export function SyncButton() {
       ) : state.scanned !== undefined ? (
         <span className="text-xs text-muted">
           Scanned {state.scanned} · {state.created} new · {state.updated} updated ·{" "}
-          {state.summarized} summarized · {state.deadlines} deadlines
+          {state.summarized} summarized · {state.deadlines} deadlines ·{" "}
+          {state.interviews} interviews
         </span>
       ) : null}
     </form>
