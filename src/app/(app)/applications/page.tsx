@@ -2,12 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { StatusBadge } from "@/components/status-badge";
-import {
-  ALL_STATUSES,
-  PIPELINE_STATUSES,
-  STATUS_META,
-  statusLabel,
-} from "@/lib/status";
+import { ALL_STATUSES, STATUS_META, statusLabel } from "@/lib/status";
 import { fmtDate, fmtSalary, relativeDays } from "@/lib/utils";
 import type { ApplicationStatus } from "@prisma/client";
 
@@ -115,7 +110,9 @@ function chip(active: boolean) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function BoardView({ apps }: { apps: any[] }) {
-  const columns: ApplicationStatus[] = [...PIPELINE_STATUSES, "REJECTED"];
+  // Every status gets a column, in STATUS_META's declared order — a status
+  // missing here means an application in it silently vanishes from the board.
+  const columns: ApplicationStatus[] = ALL_STATUSES;
   return (
     <div className="grid grid-flow-col auto-cols-[minmax(220px,1fr)] gap-3 overflow-x-auto pb-2">
       {columns.map((col) => {
